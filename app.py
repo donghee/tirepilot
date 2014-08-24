@@ -13,9 +13,6 @@ from pilotdriver import SteeringPilot, WheelPilot
 
 from spin import *
 
-# menu background
-d = 0
-speed = 4
 prev_rudo = 0
 
 class EegCarDashboard(QPygletWidget):
@@ -32,18 +29,17 @@ class EegCarDashboard(QPygletWidget):
             steering_port_name = "COM4"
             wheel_port_name = "COM3"
         elif sys.platform == 'darwin':
-            steering_port_name = "/dev/tty.usbserial-A901NMD9"
-            wheel_port_name = "/dev/tty.usbmodem1412"
+            # steering_port_name = "/dev/tty.usbserial-A901NMD9"
+            # wheel_port_name = "/dev/tty.usbmodem1412"
 
             steering_port_name = "/dev/ttys004" # mock
-            # wheel_port_name = "/dev/ttys007" # mock
-        self.steering = SteeringPilot(steering_port_name, 7000) # default 5000
-        self.wheel = WheelPilot(wheel_port_name)
-        self.set_max_throttle(35)
+            wheel_port_name = "/dev/ttys007" # mock
+            self.steering = SteeringPilot(steering_port_name, 7000) # default 5000
+            self.wheel = WheelPilot(wheel_port_name)
+            self.set_max_throttle(35)
 
     def init_spin(self):
         self.spin = Spin()
-        #self.spinshape = SpinShape()
 
     def init_labels(self):
         _x, _y = self.get_center()
@@ -51,43 +47,43 @@ class EegCarDashboard(QPygletWidget):
 
         pyglet.font.add_file(
             os.path.join(
-            os.path.dirname(__file__),
-            'resources/NewMedia.ttf')
+                os.path.dirname(__file__),
+                'resources/NewMedia.ttf')
         )
         newmedia_font = pyglet.font.load('NewMedia')
         pyglet.font.add_file(
             os.path.join(
-            os.path.dirname(__file__),
-            'resources/pf_ronda_seven.ttf')
+                os.path.dirname(__file__),
+                'resources/pf_ronda_seven.ttf')
         )
         ronda_seven_font = pyglet.font.load('PF Ronda Seven')
         self.throttle_label = pyglet.text.Label('Throttle: 0',
-                                  font_name='NewMedia',
-                                  #font_name='PF Ronda Seven',
-                                  font_size= 36,
-                                  anchor_x='left', anchor_y='center')
+                                                font_name='NewMedia',
+                                                #font_name='PF Ronda Seven',
+                                                font_size= 36,
+                                                anchor_x='left', anchor_y='center')
         self.steering_label = pyglet.text.Label('Steering: 50',
-                                  font_name='NewMedia',
-                                  #font_name='PF Ronda Seven',
-                                  font_size= 36,
-                                  anchor_x='left', anchor_y='center')
+                                                font_name='NewMedia',
+                                                #font_name='PF Ronda Seven',
+                                                font_size= 36,
+                                                anchor_x='left', anchor_y='center')
         self.busy_label = pyglet.text.Label('Busy ',
-                                  font_name='NewMedia',
-                                  font_size= 36,
-                                  anchor_x='left', anchor_y='center')
+                                            font_name='NewMedia',
+                                            font_size= 36,
+                                            anchor_x='left', anchor_y='center')
         self.batt48_label = pyglet.text.Label('Batt 1: 51v',
-                                  font_name='NewMedia',
-                                  font_size= 36,
-                                  anchor_x='left', anchor_y='center')
+                                              font_name='NewMedia',
+                                              font_size= 36,
+                                              anchor_x='left', anchor_y='center')
         self.batt24_label = pyglet.text.Label('Batt 2: 25v',
-                                  font_name='NewMedia',
-                                  font_size= 36,
-                                  anchor_x='left', anchor_y='center')
+                                              font_name='NewMedia',
+                                              font_size= 36,
+                                              anchor_x='left', anchor_y='center')
 
         self.key_input_label = pyglet.text.Label('',
-                                  font_name='PF Ronda Seven',
-                                  font_size= 36,
-                                  anchor_x='left', anchor_y='center')
+                                                 font_name='PF Ronda Seven',
+                                                 font_size= 36,
+                                                 anchor_x='left', anchor_y='center')
 
     def init_image(self, image_file):
         image = pyglet.resource.image(image_file)
@@ -96,16 +92,21 @@ class EegCarDashboard(QPygletWidget):
         return image
 
     def init_images(self):
-#        self.up_image = self.init_image("images/up.jpg")
-#        self.down_image = self.init_image("images/down.jpg")
-#        self.right_image = self.init_image("images/right.jpg")
-#        self.left_image = self.init_image("images/left.jpg")
-#        self.stop_image = self.init_image("images/stop.jpg")
-        self.up_image = self.init_image("images/stop.jpg")
-        self.down_image = self.init_image("images/stop.jpg")
-        self.right_image = self.init_image("images/stop.jpg")
-        self.left_image = self.init_image("images/stop.jpg")
-        self.stop_image = self.init_image("images/stop.jpg")
+        self.up_image = self.init_image("images/up_clicked.jpg")
+        self.right_image = self.init_image("images/right_clicked.jpg")
+        self.left_image = self.init_image("images/left_clicked.jpg")
+        self.down_image = self.init_image("images/down_clicked.jpg")
+
+        self.up_tire = self.init_image("images/up_tire.jpg")
+        self.right_tire = self.init_image("images/right_tire.jpg")
+        self.left_tire = self.init_image("images/left_tire.jpg")
+        self.down_tire = self.init_image("images/down_tire.jpg")
+
+        self.stop_image = self.init_image('images/stop_clicked.jpg')
+        self.background_image = self.init_image("images/background.jpg")
+
+    def draw_background(self, x, y):
+        self.background_image.blit(x,y)
 
     def get_center(self):
         x = self.geometry().width() /2
@@ -114,23 +115,25 @@ class EegCarDashboard(QPygletWidget):
 
     def on_draw_steering(self):
         image_x, image_y = self.get_center()
-#
-#        self.up_image.blit(image_x, image_y+140)
-#        self.down_image.blit(image_x, image_y-150)
-#        self.right_image.blit(image_x+150, image_y)
-#        self.left_image.blit(image_x-150, image_y)
-#        self.stop_image.blit(image_x, image_y)
+        space = 132
+        tire_info_space_x = 469
+        tire_info_space_y = 139
+        self.draw_background(image_x, image_y)        
         if self.wheel.get_recentcommand() == 'forward':
-            self.up_image.blit(image_x,image_y)
+            self.up_image.blit(image_x,image_y+space)
+            self.up_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
             return
         if self.wheel.get_recentcommand() == 'backward':
-            self.down_image.blit(image_x,image_y)
+            self.down_image.blit(image_x,image_y-space)
+            self.down_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
             return
         if self.wheel.get_recentcommand() == 'turn_right':
-            self.right_image.blit(image_x,image_y)
+            self.right_image.blit(image_x+space,image_y)
+            self.right_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
             return
         if self.wheel.get_recentcommand() == 'turn_left':
-            self.left_image.blit(image_x,image_y)
+            self.left_image.blit(image_x-space,image_y)
+            self.left_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
             return
         if self.wheel.get_recentcommand() == 'stop' or self.wheel.get_recentcommand() == 'brake':
             self.stop_image.blit(image_x,image_y)
@@ -155,14 +158,13 @@ class EegCarDashboard(QPygletWidget):
             if throttle < 5:
                 return
             # if throttle > 1200:
-            self.set_throttle(throttle)
-            # throttle range 1100 - 1930
-            self.forward(throttle)
+        self.set_throttle(throttle)
+        # throttle range 1100 - 1930
+        self.forward(throttle)
 
     def on_draw(self):
         self.update()
         pyglet.gl.glClearColor(0,0,0,0)
-        # self.spinshape.draw()
         self.on_draw_steering()
         self.on_draw_label()
         self.on_draw_spin()
@@ -171,47 +173,8 @@ class EegCarDashboard(QPygletWidget):
         _x, _y = self.get_center()
         self.spin.draw(30, _y*2- 30)
 
-        # for i, s in enumerate(self.spins):
-        #     s.draw(30*i%_x*2, int(60*(i%10)))
-
     def on_draw_label(self):
         _x, _y = self.get_center()
-
-        # label background
-        width = _x*2
-        height = _y*2
-
-        verts = (
-            width * 0.99, height * 0.99,
-            width * 0.99, height * 0.02,
-            width * 0.64, height * 0.02,
-            width * 0.64, height * 0.99,
-        )
-
-        from random import randrange
-
-        global d, speed
-
-        d = d+speed
-
-        if d >= 255:
-            d = 255
-            speed = -4
-        if d <= 0:
-            d = 0
-            speed = 4
-
-        colors = [
-            d,0,0,0,
-            0,d,0,0,
-            0,0,0,200,
-            0,0,0,200
-            ]
-
-#        pyglet.graphics.draw(4, pyglet.gl.GL_QUADS,
-#            ('v2f', verts),
-#            ('c4B', colors)
-#        )
 
         self.throttle_label.x = _x*2-250
         self.throttle_label.y = _y*2-50
@@ -265,14 +228,14 @@ class EegCarDashboard(QPygletWidget):
 
     def forward(self, throttle=None):
         self.init_images()
-        self.up_image = self.init_image("images/up_clicked.jpg")
+
         # self.wheel.forward(self.max_throttle)
         # self.set_throttle(self.max_throttle)
         if throttle == None:
-          throttle = self.max_throttle
-        self.wheel.forward(throttle)
-        self.set_throttle(throttle)
-        self.steering.neutral()
+            throttle = self.max_throttle
+            self.wheel.forward(throttle)
+            self.set_throttle(throttle)
+            self.steering.neutral()
 
     def backward(self):
         self.init_images()
@@ -301,6 +264,7 @@ class EegCarDashboard(QPygletWidget):
         self.init_images()
         self.stop_image = self.init_image('images/stop_clicked.jpg')
         self.wheel.stop()
+        self.wheel.brake()        
 
     def brake(self):
         self.init_images()
@@ -308,8 +272,8 @@ class EegCarDashboard(QPygletWidget):
         print "Brake"
 
     def connect(self):
-#        self.steering.connect()
-#        self.wheel.connect()
+        #        self.steering.connect()
+        #        self.wheel.connect()
         print "dashboard connected"
 
     def disconnect(self):
@@ -442,12 +406,12 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_K:
             self.throttle_slider.setValue(self.throttle_slider.value() + 5)
-        if event.key() == Qt.Key_J:
-            self.throttle_slider.setValue(self.throttle_slider.value() - 5)
-        if event.key() == Qt.Key_H:
-            self.steering_slider.setValue(self.steering_slider.value() - 5)
-        if event.key() == Qt.Key_L:
-            self.steering_slider.setValue(self.steering_slider.value() + 5)
+            if event.key() == Qt.Key_J:
+                self.throttle_slider.setValue(self.throttle_slider.value() - 5)
+                if event.key() == Qt.Key_H:
+                    self.steering_slider.setValue(self.steering_slider.value() - 5)
+                    if event.key() == Qt.Key_L:
+                        self.steering_slider.setValue(self.steering_slider.value() + 5)
 
         if event.key() == Qt.Key_W:
             self.dashboard.set_key_input('w')
@@ -479,9 +443,9 @@ class EegCarDashboardWindow(QWidget):
                     w = self.layout.itemAt(i).widget()
                     w.show()
                     self.dashboard.showNormal()
-                self.change_backgroundcolor(self.default_backgroundcolor);
-                self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.WindowTitleHint)
-                self.showNormal()
+                    self.change_backgroundcolor(self.default_backgroundcolor);
+                    self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.WindowTitleHint)
+                    self.showNormal()
 
             else:
                 for i in range(self.layout.count()):
@@ -489,10 +453,10 @@ class EegCarDashboardWindow(QWidget):
                     if w == self.dashboard:
                         continue
                     w.hide()
-                self.change_backgroundcolor(Qt.black);
-                self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-                self.showMaximized()
-                self.dashboard.showFullScreen()
+                    self.change_backgroundcolor(Qt.black);
+                    self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+                    self.showMaximized()
+                    self.dashboard.showFullScreen()
 
         if event.key() == Qt.Key_Escape:
             self.dashboard.close()
