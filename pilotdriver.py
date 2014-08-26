@@ -5,7 +5,6 @@ import sys
 from wheeldriver import WheelDriver
 from steeringdriver import PMC1HSUSBDriver
 
-
 class SteeringPilot:
     def __init__(self, port_name, speed):
         port = serial.Serial(port_name, 9600)
@@ -14,7 +13,10 @@ class SteeringPilot:
         stepping_driver.set_speed(speed)
         self.init_driver(stepping_driver)
         self.recentcommand = 'neutral'
-        self.turn_ticks = 150000
+        self.turn_ticks = 200000
+        
+    def set_turn_ticks(self, ticks=150000):
+        self.turn_ticks = ticks
 
     def get_recentcommand(self):
         return self.recentcommand
@@ -99,6 +101,10 @@ class WheelPilot:
     batt48 = 0
     throttle_in = 0
     rudo_in = 0
+    elev_in = 0
+
+    def get_steering_pot(self):
+        return self.steering_pot
 
     def get_batt48(self):
         return self.batt48
@@ -112,9 +118,15 @@ class WheelPilot:
     def get_rudo_from_rc(self):
         return self.rudo_in
 
+    def get_elev_from_rc(self):
+        return self.elev_in
+
     def update_data(self):
-        if len(self.wheeldriver.get_data()) == 5:
-            self.steering_pot, self.batt24, self.batt48, self.throttle_in, self.rudo_in = self.wheeldriver.get_data()
+        # if len(self.wheeldriver.get_data()) == 5:
+        #     self.steering_pot, self.batt24, self.batt48, self.throttle_in, self.rudo_in = self.wheeldriver.get_data()
+
+        if len(self.wheeldriver.get_data()) == 6:
+            self.steering_pot, self.batt24, self.batt48, self.throttle_in, self.rudo_in, self.elev_in = self.wheeldriver.get_data()
 
     def get_recentcommand(self):
         return self.recentcommand

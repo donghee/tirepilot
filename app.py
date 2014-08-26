@@ -22,7 +22,9 @@ class EegCarDashboard(QPygletWidget):
         self.init_labels()
         self.init_images()
         self.init_pilotdriver()
-        self.setMinimumSize(QSize(250, 250))
+        self.init_rc_mode()
+
+        self.setMinimumSize(QSize(640, 480))
 
     def init_pilotdriver(self):
         if sys.platform == 'win32':
@@ -30,13 +32,12 @@ class EegCarDashboard(QPygletWidget):
             wheel_port_name = "COM3"
         elif sys.platform == 'darwin':
             # steering_port_name = "/dev/tty.usbserial-A901NMD9"
-            # wheel_port_name = "/dev/tty.usbmodem1412"
-
+            # wheel_port_name = "/dev/tty.usbmodem1432"
             steering_port_name = "/dev/ttys004" # mock
             wheel_port_name = "/dev/ttys007" # mock
-            self.steering = SteeringPilot(steering_port_name, 7000) # default 5000
-            self.wheel = WheelPilot(wheel_port_name)
-            self.set_max_throttle(35)
+        self.steering = SteeringPilot(steering_port_name, 5000) # default 5000
+        self.wheel = WheelPilot(wheel_port_name)
+        self.set_max_throttle(30)
 
     def init_spin(self):
         self.spin = Spin()
@@ -67,10 +68,12 @@ class EegCarDashboard(QPygletWidget):
                                                 #font_name='PF Ronda Seven',
                                                 font_size= 36,
                                                 anchor_x='left', anchor_y='center')
+
         self.busy_label = pyglet.text.Label('Busy ',
                                             font_name='NewMedia',
                                             font_size= 36,
                                             anchor_x='left', anchor_y='center')
+
         self.batt48_label = pyglet.text.Label('Batt 1: 51v',
                                               font_name='NewMedia',
                                               font_size= 36,
@@ -80,10 +83,35 @@ class EegCarDashboard(QPygletWidget):
                                               font_size= 36,
                                               anchor_x='left', anchor_y='center')
 
+        self.steering_pot_label = pyglet.text.Label('Steering',
+                                              font_name='NewMedia',
+                                              font_size= 36,
+                                              anchor_x='left', anchor_y='center')
+
         self.key_input_label = pyglet.text.Label('',
                                                  font_name='PF Ronda Seven',
                                                  font_size= 36,
                                                  anchor_x='left', anchor_y='center')
+        self.reset_label_position()
+
+    def reset_label_position(self):
+        _x, _y = self.get_center()
+        
+        self.batt48_label.x = _x*2-250
+        self.batt48_label.y = 220
+        self.batt24_label.x = _x*2-250
+        self.batt24_label.y = 170
+        self.steering_pot_label.x = _x*2-250
+        self.steering_pot_label.y = 120
+        self.key_input_label.x  = _x*2-70
+        self.key_input_label.y  = 70
+
+        self.throttle_label.x = _x*2-250
+        self.throttle_label.y = _y*2-50
+        self.steering_label.x = _x*2-250
+        self.steering_label.y = _y*2-100
+        self.busy_label.x = _x*2-250
+        self.busy_label.y = _y*2-150
 
     def init_image(self, image_file):
         image = pyglet.resource.image(image_file)
@@ -139,11 +167,24 @@ class EegCarDashboard(QPygletWidget):
             self.stop_image.blit(image_x,image_y)
             return
 
+    def init_rc_mode(self):
+        self.rc_mode = False
+        self.rc_mode_is_forward = True
+
+    def set_rc_mode(self, mode):
+        self.rc_mode = mode
+        if self.rc_mode == True:
+            print "Dashboard RC Mode"
+        else:
+            print "Dashboard Pilot Mode"
+
     def update(self):
         global prev_rudo
         self.wheel.update_data()
-        return
+        if self.rc_mode == False:
+            return
         _rudo = self.wheel.get_rudo_from_rc()
+        print "rudo: %d " % _rudo
         if _rudo > 0:
             rudo = (_rudo - 1515) / 10
             if prev_rudo != rudo:
@@ -151,16 +192,40 @@ class EegCarDashboard(QPygletWidget):
                 self.steering.turn_by_position(rudo+50)
                 prev_rudo = rudo
 
+        _elev = self.wheel.get_elev_from_rc()
+        # paddle up: 1352 (1360 safe)
+        # normal: 1516
+        # paddle down: 1680 (1660 safe)
+        # elev range 1680(down) - 1516(normal) - 1352(up)
+        print "elev: %d" % _elev
+        if _elev > 1660:
+            self.rc_mode_is_forward = False
+            print "RC Mode: BACKWARD"
+        else:
+            self.rc_mode_is_forward = True
+            print "RC Mode: FORWARD"
+
+        # TODO: check throttle response time
+
         # throttle
         _throttle = self.wheel.get_throttle_from_rc()
+        print "throttle: %d " % _throttle
         if _throttle > 0:
             throttle =  (_throttle -1100)/10
             if throttle < 5:
+                self.stop()
                 return
             # if throttle > 1200:
-        self.set_throttle(throttle)
-        # throttle range 1100 - 1930
-        self.forward(throttle)
+            self.set_throttle(throttle)
+            # throttle range 1100 - 1930
+            # TODO: check MAX throttle
+            if self.rc_mode_is_forward:
+                self.forward()
+                #self.forward(throttle)
+            else:
+                self.backward()
+        else: # if _throttle is 0, rc is not connected
+            self.stop()
 
     def on_draw(self):
         self.update()
@@ -176,42 +241,27 @@ class EegCarDashboard(QPygletWidget):
     def on_draw_label(self):
         _x, _y = self.get_center()
 
-        self.throttle_label.x = _x*2-250
-        self.throttle_label.y = _y*2-50
         self.throttle_label.draw()
-
-        self.steering_label.x = _x*2-250
-        self.steering_label.y = _y*2-100
         self.steering_label.draw()
-
-        self.busy_label.x = _x*2-250
-        self.busy_label.y = _y*2-150
-        self.busy_label.draw()
 
         if self.steering.isworking():
             self.busy_label.color = (255,0,0,255)
         else:
             self.busy_label.color = (255,255,255,255)
 
-        self.busy_label.x = _x*2-250
-        self.busy_label.y = _y*2-150
         self.busy_label.draw()
 
-
-        self.batt48_label.x = _x*2-250
-        self.batt48_label.y = 180
         self.batt48_label.text = "Batt 1: " +str(self.wheel.get_batt48()/10.0) + 'v'
         self.batt48_label.draw()
 
-        self.batt24_label.x = _x*2-250
-        self.batt24_label.y = 130
         self.batt24_label.text = "Batt 2: " +str(self.wheel.get_batt24()/10.0) + 'v'
         self.batt24_label.draw()
 
+        self.steering_pot_label.text = "Steering: " +str(self.wheel.get_steering_pot()/100.0) + 'v'
+        self.steering_pot_label.draw()
+
         #self.window.update_battery_status(48,24)
 
-        self.key_input_label.x  = _x*2-70
-        self.key_input_label.y  = 70
         self.key_input_label.draw()
 
     def set_throttle(self, throttle):
@@ -241,14 +291,14 @@ class EegCarDashboard(QPygletWidget):
         self.init_images()
         self.down_image = self.init_image("images/down_clicked.jpg")
         # self.wheel.backward()
-        self.wheel.backward(60) # 60 is throttle power
+        self.wheel.backward(45) # 45 is throttle power
         #self.steering.neutral()
 
     def turn_right(self):
         self.init_images()
         self.right_image = self.init_image("images/right_clicked.jpg")
         if self.steering.get_recentcommand() == 'turn_right': return
-        self.wheel.turn_right(self.max_throttle) # 35 is throttle power
+        self.wheel.turn_right(self.max_throttle) # 30 is throttle power
         self.set_throttle(self.max_throttle)
         self.steering.turn_right(1)
 
@@ -305,10 +355,11 @@ class EegCarDashboardWindow(QWidget):
         return int(self.maxThrottle.text())
 
     def remote_control(self, state):
-
         if state == QtCore.Qt.Checked:
+            self.dashboard.set_rc_mode(True)
             print 'SET_RC_MODE'
         else:
+            self.dashboard.set_rc_mode(False)
             print 'CLEAR_RC_MODE'
 
     def update_battery_status(self, _batt48, _batt24):
@@ -351,7 +402,7 @@ class EegCarDashboardWindow(QWidget):
         self.throttle_label = QLabel('Manual Throttle (%): ', self)
         self.steering_label = QLabel('Manual Steering (%): ', self)
 
-        self.maxThrottle = QLineEdit('35') # 35 is default
+        self.maxThrottle = QLineEdit('30') # 35 is default
         self.maxThrottle.setMaxLength(2)
         self.maxThrottle.setMaximumWidth(40)
 
@@ -406,12 +457,12 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_K:
             self.throttle_slider.setValue(self.throttle_slider.value() + 5)
-            if event.key() == Qt.Key_J:
-                self.throttle_slider.setValue(self.throttle_slider.value() - 5)
-                if event.key() == Qt.Key_H:
-                    self.steering_slider.setValue(self.steering_slider.value() - 5)
-                    if event.key() == Qt.Key_L:
-                        self.steering_slider.setValue(self.steering_slider.value() + 5)
+        if event.key() == Qt.Key_J:
+            self.throttle_slider.setValue(self.throttle_slider.value() - 5)
+        if event.key() == Qt.Key_H:
+            self.steering_slider.setValue(self.steering_slider.value() - 5)
+        if event.key() == Qt.Key_L:
+            self.steering_slider.setValue(self.steering_slider.value() + 5)
 
         if event.key() == Qt.Key_W:
             self.dashboard.set_key_input('w')
@@ -442,21 +493,22 @@ class EegCarDashboardWindow(QWidget):
                 for i in range(self.layout.count()):
                     w = self.layout.itemAt(i).widget()
                     w.show()
-                    self.dashboard.showNormal()
-                    self.change_backgroundcolor(self.default_backgroundcolor);
-                    self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.WindowTitleHint)
-                    self.showNormal()
-
+                self.dashboard.showNormal()
+                self.change_backgroundcolor(self.default_backgroundcolor);
+                self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.WindowTitleHint)
+                self.showNormal()
             else:
                 for i in range(self.layout.count()):
                     w = self.layout.itemAt(i).widget()
                     if w == self.dashboard:
                         continue
                     w.hide()
-                    self.change_backgroundcolor(Qt.black);
-                    self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-                    self.showMaximized()
-                    self.dashboard.showFullScreen()
+                self.change_backgroundcolor(Qt.black);
+                self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+                self.showMaximized()
+                self.dashboard.showFullScreen()
+
+            self.dashboard.reset_label_position()
 
         if event.key() == Qt.Key_Escape:
             self.dashboard.close()

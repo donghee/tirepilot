@@ -64,9 +64,9 @@ class WheelDriver():
     @QtCore.Slot(str)
     def print_data(self, data):
         d = [int(x) for x in data.split(',')]
-        if len(d) == 5: # check size of length
+        # if len(d) == 5: # check size of length
+        if len(d) == 6: # ELEV ADDED
           self._data = d
-          #print d
 
     def print_error(self, data):
         print "ERROR: " + data
