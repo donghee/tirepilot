@@ -14,6 +14,7 @@ from pilotdriver import SteeringPilot, WheelPilot
 from spin import *
 
 prev_rudo = 0
+prev_throttle = 0
 
 class EegCarDashboard(QPygletWidget):
 
@@ -37,7 +38,7 @@ class EegCarDashboard(QPygletWidget):
             wheel_port_name = "/dev/ttys007" # mock
         self.steering = SteeringPilot(steering_port_name, 5000) # default 5000
         self.wheel = WheelPilot(wheel_port_name)
-        self.set_max_throttle(30)
+        self.set_max_throttle(45)
 
     def init_spin(self):
         self.spin = Spin()
@@ -168,8 +169,10 @@ class EegCarDashboard(QPygletWidget):
             return
 
     def init_rc_mode(self):
+        #self.rc_mode = True
         self.rc_mode = False
         self.rc_mode_is_forward = True
+        self.rc_mode_is_throttle_up = True
 
     def set_rc_mode(self, mode):
         self.rc_mode = mode
@@ -178,54 +181,90 @@ class EegCarDashboard(QPygletWidget):
         else:
             print "Dashboard Pilot Mode"
 
+    def _map(self, value, start1, stop1, start2, stop2):
+        # TODO: _map(0, 3000, 2000, 0, 100) ???
+        if value <= start1:
+            return float(start2)
+        if value >= stop1:
+            return float(stop2)
+        return start2 + (stop2 - start2) * (float(value - start1) / float(stop1 - start1))
+
+    def _is_between(self, value, n1, n2):
+        return n1 <= value <= n2
+
     def update(self):
-        global prev_rudo
+        global prev_rudo, prev_throttle
         self.wheel.update_data()
+        pot = self.wheel.get_steering_pot() # range 140 160 210
+        # pot range: left(1.97) - middle 1.67 - right 1.15
+        # pot range: left(x) - middle x - right x
+        # print "Pod: %d" % pot
         if self.rc_mode == False:
             return
+
+        # STEERING: RUDO
+        # rudo range 1897(left) - 1509(middle) - 1119(right)
+        # raw rudo throshold: 1000
         _rudo = self.wheel.get_rudo_from_rc()
-        print "rudo: %d " % _rudo
-        if _rudo > 0:
-            rudo = (_rudo - 1515) / 10
-            if prev_rudo != rudo:
-                self.set_steering(rudo+50)
-                self.steering.turn_by_position(rudo+50)
+        #print "rudo: %d " % _rudo
+
+        if _rudo > 1000:
+            rudo = self._map(_rudo, 1200, 1897, 95, 5)
+            if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
+                self.set_steering(int(rudo))
+                self.steering.turn_by_position(int(rudo),pot)
                 prev_rudo = rudo
 
+        # DIRECTION: ELEV
+        # elev range 1119(down) - 1504(normal) - 1897(up)
         _elev = self.wheel.get_elev_from_rc()
-        # paddle up: 1352 (1360 safe)
-        # normal: 1516
-        # paddle down: 1680 (1660 safe)
-        # elev range 1680(down) - 1516(normal) - 1352(up)
-        print "elev: %d" % _elev
-        if _elev > 1660:
-            self.rc_mode_is_forward = False
-            print "RC Mode: BACKWARD"
-        else:
-            self.rc_mode_is_forward = True
-            print "RC Mode: FORWARD"
+        #print "elev: %d" % _elev
+        if _elev > 1000:
+            if _elev < 1300:
+                self.rc_mode_is_forward = False
+                #print "RC Mode: BACKWARD"
+            else:
+                self.rc_mode_is_forward = True
+                #print "RC Mode: FORWARD"
 
+        # THROTTLE: THROTTLE
         # TODO: check throttle response time
-
-        # throttle
+        # throttle range 1100 - 1930
+        # throttle throshold: 1000
         _throttle = self.wheel.get_throttle_from_rc()
-        print "throttle: %d " % _throttle
-        if _throttle > 0:
-            throttle =  (_throttle -1100)/10
-            if throttle < 5:
-                self.stop()
+        #print "throttle: %d " % _throttle
+        if _throttle > 1000:
+            throttle = self._map(_throttle, 1124, 1892, 0, 100)
+
+            if throttle < 5: # less then 20%, stop!
+                if self.rc_mode_is_throttle_up == True:
+                    #self.stop()
+                    self.brake()
+                    prev_throttle = throttle
+                    self.rc_mode_is_throttle_up = False
                 return
-            # if throttle > 1200:
+
             self.set_throttle(throttle)
-            # throttle range 1100 - 1930
-            # TODO: check MAX throttle
+
             if self.rc_mode_is_forward:
-                self.forward()
+                if self.rc_mode_is_throttle_up == False:
+                    self.just_forward()
+                    self.rc_mode_is_throttle_up = True
+                    print "RC Mode: COMMAND FORWARD"
+                prev_throttle = throttle
+                return
                 #self.forward(throttle)
             else:
-                self.backward()
+                if self.rc_mode_is_throttle_up == False:
+                    self.backward()
+                    self.rc_mode_is_throttle_up = True
+                    print "RC Mode: COMMAND BACKWARD"
+                return
         else: # if _throttle is 0, rc is not connected
-            self.stop()
+            prev_throttle = 0
+            self.rc_mode_is_throttle_up = False
+            #self.stop()
+            self.brake()
 
     def on_draw(self):
         self.update()
@@ -276,6 +315,10 @@ class EegCarDashboard(QPygletWidget):
     def set_max_throttle(self, throttle):
         self.max_throttle = throttle
 
+    def just_forward(self):
+        self.init_images()
+        self.wheel.forward(self.max_throttle)
+
     def forward(self, throttle=None):
         self.init_images()
 
@@ -291,14 +334,14 @@ class EegCarDashboard(QPygletWidget):
         self.init_images()
         self.down_image = self.init_image("images/down_clicked.jpg")
         # self.wheel.backward()
-        self.wheel.backward(45) # 45 is throttle power
+        self.wheel.backward(40) # 40 is throttle power
         #self.steering.neutral()
 
     def turn_right(self):
         self.init_images()
         self.right_image = self.init_image("images/right_clicked.jpg")
         if self.steering.get_recentcommand() == 'turn_right': return
-        self.wheel.turn_right(self.max_throttle) # 30 is throttle power
+        self.wheel.turn_right(self.max_throttle)
         self.set_throttle(self.max_throttle)
         self.steering.turn_right(1)
 
@@ -315,6 +358,7 @@ class EegCarDashboard(QPygletWidget):
         self.stop_image = self.init_image('images/stop_clicked.jpg')
         self.wheel.stop()
         self.wheel.brake()        
+        self.set_throttle(0)
 
     def brake(self):
         self.init_images()
@@ -365,8 +409,6 @@ class EegCarDashboardWindow(QWidget):
     def update_battery_status(self, _batt48, _batt24):
         self.batt48(str(_batt48))
         self.batt24(str(_batt24))
-        #self.batt48.
-        #self.batt24.
 
     def __init__(self):
         QWidget.__init__(self)
@@ -381,6 +423,7 @@ class EegCarDashboardWindow(QWidget):
         # Drive Setting
         self.rc_mode = QCheckBox('R&emote control', self)
         self.rc_mode.stateChanged.connect(self.remote_control)
+        #self.rc_mode.toggle() # Default RC Mode
         self.batt48 = QLabel('Batt1 (v): ', self)
         self.batt24 = QLabel('Batt2 (v): ', self)
         drive_layout = QHBoxLayout(self)
@@ -402,7 +445,7 @@ class EegCarDashboardWindow(QWidget):
         self.throttle_label = QLabel('Manual Throttle (%): ', self)
         self.steering_label = QLabel('Manual Steering (%): ', self)
 
-        self.maxThrottle = QLineEdit('30') # 35 is default
+        self.maxThrottle = QLineEdit('45') # 45 is default
         self.maxThrottle.setMaxLength(2)
         self.maxThrottle.setMaximumWidth(40)
 
@@ -487,6 +530,13 @@ class EegCarDashboardWindow(QWidget):
         if event.key() == Qt.Key_B:
             self.dashboard.set_key_input('b')
             self.dashboard.brake()
+
+        if event.key() == Qt.Key_R:
+            self.dashboard.set_key_input('r')
+            # TODO: Make Inspection Mode
+            # self.dashboard.steering.position_clear()
+            #pot = self.dashboard.wheel.get_steering_pot()
+            #self.dashboard.steering.middle_position(pot)
 
         if event.key() == Qt.Key_F:
             if self.dashboard.isFullScreen():

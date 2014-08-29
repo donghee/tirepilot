@@ -32,13 +32,22 @@ class SteeringPilot:
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
 
-    def turn_by_position(self, percent):
+    def turn_by_position(self, percent, pot):
         if self.stepping_driver.isworking():
             return
         self.current_location = self.stepping_driver.get_current_pos()
-        if self.current_location < -200000 or 200000 < self.current_location:
-            print "Range Overflow! %d", self.current_location
+        if self.current_location < -190000 or 190000 < self.current_location:
+            print "Range Overflow! %d" % self.current_location
+            # TODO: overflow processing using pot
+            self.current_location = self.stepping_driver.get_current_pos()
+            if self.current_location < -190000:
+                overflow_delta_ticks = -190000 - self.current_location
+                self.stepping_driver.forward(abs(overflow_delta_ticks))
+            if self.current_location > 190000:
+                overflow_delta_ticks = self.current_location - 190000
+                self.stepping_driver.backward(abs(overflow_delta_ticks))
             return
+
         target_location = (int(400000/100.0) * (100-percent)) - 200000
         delta_ticks = target_location - self.current_location
         self.logger.info('Current: %d, Target: %d, Delta ticks: %d', self.current_location, target_location, delta_ticks)
@@ -75,6 +84,21 @@ class SteeringPilot:
         if self.stepping_driver.isworking(): return
         self.logger.info('Current: %d Stop', self.current_location)
         self.stepping_driver.stop()
+    
+    def position_clear(self):
+        self.stepping_driver.reset()
+
+    def middle_position(self, pot):
+        return
+        # pot range: left(1.97) - middle 1.60 - right 1.15
+        #if pot > 170:
+            #self.stepping_driver.backward(10000)
+            #self.turn_right(0.05)
+        #if pot < 150:
+            #self.stepping_driver.forward(10000)
+            #self.turn_left(0.05)
+        #if 155 <= pot <= 165:
+            #print 'Finish Middle Position Pot: %d' % pot
         
     def neutral(self):
         if self.stepping_driver.isworking(): return
@@ -125,6 +149,7 @@ class WheelPilot:
         # if len(self.wheeldriver.get_data()) == 5:
         #     self.steering_pot, self.batt24, self.batt48, self.throttle_in, self.rudo_in = self.wheeldriver.get_data()
 
+        #print self.wheeldriver.get_data()
         if len(self.wheeldriver.get_data()) == 6:
             self.steering_pot, self.batt24, self.batt48, self.throttle_in, self.rudo_in, self.elev_in = self.wheeldriver.get_data()
 
@@ -161,7 +186,7 @@ class WheelPilot:
         self.recentcommand = 'stop'
 
     def brake(self):
-        self.command('s')
+        #self.command('s')
         self.command('b')        
         self.recentcommand = 'brake'
 
