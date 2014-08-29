@@ -484,8 +484,10 @@ class EegCarDashboardWindow(QWidget):
         self.setButton()
         self.show()
 
+        # save the state
         self.default_backgroundcolor = self.palette().color(QtGui.QPalette.Background)
         self.previos_steering = 50
+        self.init_keep_mode()
 
     def setIcon(self):
         self.appIcon = QIcon('logo.png')
@@ -495,17 +497,54 @@ class EegCarDashboardWindow(QWidget):
         self.connectButton.move(50,100)
         self.connectButton.clicked.connect(self.connectMotor)
 
+    def init_keep_mode(self):
+        self.w_keep_countdown = 0
+        self.x_keep_countdown = 0
+        self.default_keep_countdown = 7
+
+    def is_keep_mode(self, ignore_key):
+        # if key is 'w' -> w_keep_countdown
+        # if key is 'x' -> x_keep_countdown
+        # ignore several 's' key while chountdown number to zero
+        if ignore_key == Qt.Key_S: 
+            if self.w_keep_countdown > 0:
+                self.w_keep_countdown = self.w_keep_countdown - 1
+                print "w keep countdown %d" % self.w_keep_countdown
+                return True
+            if self.x_keep_countdown > 0:
+                self.x_keep_countdown = self.x_keep_countdown - 1
+                print "x keep countdown %d" % self.x_keep_countdown
+                return True
+        return False
+
+    def go_to_keep_mode(self, key):
+        if key == Qt.Key_W:
+            self.w_keep_countdown = self.default_keep_countdown
+
+        if key == Qt.Key_X:
+            self.x_keep_countdown = self.default_keep_countdown
+                
     def keyPressEvent(self, event):
         self.dashboard.set_max_throttle(self.getMaxThrottle())
 
+        if self.is_keep_mode(event.key()):
+            return
+
         if event.key() == Qt.Key_K:
             self.throttle_slider.setValue(self.throttle_slider.value() + 5)
+
         if event.key() == Qt.Key_J:
             self.throttle_slider.setValue(self.throttle_slider.value() - 5)
+
         if event.key() == Qt.Key_H:
             self.steering_slider.setValue(self.steering_slider.value() - 5)
+
         if event.key() == Qt.Key_L:
             self.steering_slider.setValue(self.steering_slider.value() + 5)
+
+        if event.key() == Qt.Key_S:
+            self.dashboard.set_key_input('s')
+            self.dashboard.stop()
 
         if event.key() == Qt.Key_W:
             self.dashboard.set_key_input('w')
@@ -522,10 +561,6 @@ class EegCarDashboardWindow(QWidget):
         if event.key() == Qt.Key_D:
             self.dashboard.set_key_input('d')
             self.dashboard.turn_right()
-
-        if event.key() == Qt.Key_S:
-            self.dashboard.set_key_input('s')
-            self.dashboard.stop()
 
         if event.key() == Qt.Key_B:
             self.dashboard.set_key_input('b')
@@ -563,6 +598,8 @@ class EegCarDashboardWindow(QWidget):
         if event.key() == Qt.Key_Escape:
             self.dashboard.close()
             self.close()
+
+        self.go_to_keep_mode(event.key())
 
     def change_backgroundcolor(self, color):
         p = self.palette()
