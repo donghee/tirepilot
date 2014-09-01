@@ -38,7 +38,7 @@ class EegCarDashboard(QPygletWidget):
             wheel_port_name = "/dev/ttys007" # mock
         self.steering = SteeringPilot(steering_port_name, 5000) # default 5000
         self.wheel = WheelPilot(wheel_port_name)
-        self.set_max_throttle(45)
+        self.set_max_throttle(40)
 
     def init_spin(self):
         self.spin = Spin()
@@ -334,7 +334,7 @@ class EegCarDashboard(QPygletWidget):
         self.init_images()
         self.down_image = self.init_image("images/down_clicked.jpg")
         # self.wheel.backward()
-        self.wheel.backward(40) # 40 is throttle power
+        self.wheel.backward(33) # 30 is throttle power
         #self.steering.neutral()
 
     def turn_right(self):
@@ -500,7 +500,7 @@ class EegCarDashboardWindow(QWidget):
     def init_keep_mode(self):
         self.w_keep_countdown = 0
         self.x_keep_countdown = 0
-        self.default_keep_countdown = 7
+        self.default_keep_countdown = 60
 
     def is_keep_mode(self, ignore_key):
         # if key is 'w' -> w_keep_countdown
@@ -552,7 +552,7 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_A:
             self.dashboard.set_key_input('a')
-            self.dashboard.turn_left()
+            #self.dashboard.turn_left()
 
         if event.key() == Qt.Key_X:
             self.dashboard.set_key_input('x')
@@ -560,7 +560,7 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_D:
             self.dashboard.set_key_input('d')
-            self.dashboard.turn_right()
+            #self.dashboard.turn_right()
 
         if event.key() == Qt.Key_B:
             self.dashboard.set_key_input('b')
