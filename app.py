@@ -39,6 +39,7 @@ class EegCarDashboard(QPygletWidget):
         self.steering = SteeringPilot(steering_port_name, 5000) # default 5000
         self.wheel = WheelPilot(wheel_port_name)
         self.set_max_throttle(40)
+        self.set_backward_max_throttle(40)
 
     def init_spin(self):
         self.spin = Spin()
@@ -171,6 +172,7 @@ class EegCarDashboard(QPygletWidget):
     def init_rc_mode(self):
         #self.rc_mode = True
         self.rc_mode = False
+        self.rc_stright_mode = False
         self.rc_mode_is_forward = True
         self.rc_mode_is_throttle_up = True
 
@@ -180,6 +182,13 @@ class EegCarDashboard(QPygletWidget):
             print "Dashboard RC Mode"
         else:
             print "Dashboard Pilot Mode"
+
+    def set_rc_stright_mode(self, mode):
+        self.rc_stright_mode = mode
+        if self.rc_stright_mode == True:
+            print "Dashboard RC STRIGHT Mode"
+        else:
+            print "Dashboard RC FREE L/R Mode"
 
     def _map(self, value, start1, stop1, start2, stop2):
         # TODO: _map(0, 3000, 2000, 0, 100) ???
@@ -211,8 +220,17 @@ class EegCarDashboard(QPygletWidget):
         if _rudo > 1000:
             rudo = self._map(_rudo, 1200, 1897, 95, 5)
             if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
+                if self.rc_stright_mode:
+                    if rudo < 30:
+                        # rudo = 35
+                        rudo = 40
+                    elif rudo > 70:
+                        # rudo = 65
+                        rudo = 60
+                    else:
+                        rudo = 50
                 self.set_steering(int(rudo))
-                self.steering.turn_by_position(int(rudo),pot)
+                self.steering.turn_by_position(int(rudo), pot)
                 prev_rudo = rudo
 
         # DIRECTION: ELEV
@@ -315,6 +333,9 @@ class EegCarDashboard(QPygletWidget):
     def set_max_throttle(self, throttle):
         self.max_throttle = throttle
 
+    def set_backward_max_throttle(self, throttle):
+        self.backward_max_throttle = throttle
+
     def just_forward(self):
         self.init_images()
         self.wheel.forward(self.max_throttle)
@@ -334,7 +355,7 @@ class EegCarDashboard(QPygletWidget):
         self.init_images()
         self.down_image = self.init_image("images/down_clicked.jpg")
         # self.wheel.backward()
-        self.wheel.backward(33) # 30 is throttle power
+        self.wheel.backward(self.backward_max_throttle) # 45 is throttle power
         #self.steering.neutral()
 
     def turn_right(self):
@@ -395,8 +416,6 @@ class EegCarDashboardWindow(QWidget):
         self.setMessage('connected')
         self.dashboard.connect()
 
-    def getMaxThrottle(self):
-        return int(self.maxThrottle.text())
 
     def remote_control(self, state):
         if state == QtCore.Qt.Checked:
@@ -405,6 +424,20 @@ class EegCarDashboardWindow(QWidget):
         else:
             self.dashboard.set_rc_mode(False)
             print 'CLEAR_RC_MODE'
+
+    def keep_mode_control(self, state):
+        if state == QtCore.Qt.Checked:
+            self.keep_mode = True
+        else:
+            self.keep_mode = False
+
+    def stright_control(self, state):
+        if state == QtCore.Qt.Checked:
+            self.dashboard.set_rc_stright_mode(True)
+            print 'SET_RC_STRIGHT_MODE'
+        else:
+            self.dashboard.set_rc_stright_mode(False)
+            print 'CLEAR_RC_STRIGHT_MODE'
 
     def update_battery_status(self, _batt48, _batt24):
         self.batt48(str(_batt48))
@@ -423,6 +456,13 @@ class EegCarDashboardWindow(QWidget):
         # Drive Setting
         self.rc_mode = QCheckBox('R&emote control', self)
         self.rc_mode.stateChanged.connect(self.remote_control)
+
+        self.rc_stright_mode = QCheckBox('RC Stright', self)
+        self.rc_stright_mode.stateChanged.connect(self.stright_control)
+
+        self.keep_mode = QCheckBox('K&eep Mode', self)
+        self.keep_mode.stateChanged.connect(self.keep_mode_control)
+
         #self.rc_mode.toggle() # Default RC Mode
         self.batt48 = QLabel('Batt1 (v): ', self)
         self.batt24 = QLabel('Batt2 (v): ', self)
@@ -430,6 +470,9 @@ class EegCarDashboardWindow(QWidget):
         drive_layout.addWidget(self.batt48)
         drive_layout.addWidget(self.batt24)
         drive_layout.addWidget(self.rc_mode)
+        drive_layout.addWidget(self.rc_stright_mode)
+        drive_layout.addWidget(self.keep_mode)
+
         drive_groupbox = QtGui.QGroupBox("Drive Status & Setting")
         drive_groupbox.setLayout(drive_layout)
 
@@ -445,15 +488,27 @@ class EegCarDashboardWindow(QWidget):
         self.throttle_label = QLabel('Manual Throttle (%): ', self)
         self.steering_label = QLabel('Manual Steering (%): ', self)
 
-        self.maxThrottle = QLineEdit('45') # 45 is default
+        self.maxThrottle = QLineEdit('40') # 45 is default
+        # self.maxThrottle.textChanged[str].connect(self.setMaxThrottle)
+        self.maxThrottle.editingFinished.connect(self.setMaxThrottle)
         self.maxThrottle.setMaxLength(2)
         self.maxThrottle.setMaximumWidth(40)
+
+        self.backwardMaxThrottle = QLineEdit('40') # 45 is default
+        # self.maxThrottle.textChanged[str].connect(self.setMaxThrottle)
+        self.backwardMaxThrottle.editingFinished.connect(self.setBackwardMaxThrottle)
+        self.backwardMaxThrottle.setMaxLength(2)
+        self.backwardMaxThrottle.setMaximumWidth(40)
 
         throttle_layout = QHBoxLayout(self)
         throttle_layout.addWidget(self.throttle_label)
         throttle_layout.addWidget(self.throttle_slider)
         throttle_layout.addWidget(QLabel("Max:"))
         throttle_layout.addWidget(self.maxThrottle)
+
+        throttle_layout.addWidget(QLabel("B Max:"))
+        throttle_layout.addWidget(self.backwardMaxThrottle)
+
 
         throttle_groupbox = QtGui.QGroupBox("Throttle Range")
         throttle_groupbox.setLayout(throttle_layout)
@@ -489,6 +544,29 @@ class EegCarDashboardWindow(QWidget):
         self.previos_steering = 50
         self.init_keep_mode()
 
+    def getMaxThrottle(self):
+        return int(self.maxThrottle.text())
+
+    def getBackwardMaxThrottle(self):
+        return int(self.backwardMaxThrottle.text())
+
+    def setMaxThrottle(self):
+        throttle = self.getMaxThrottle()
+        if self.maxThrottle.isModified():
+            if throttle >=10:
+                self.dashboard.set_max_throttle(throttle)
+                print throttle
+                self.maxThrottle.clearFocus()
+        self.maxThrottle.setModified(False)
+
+    def setBackwardMaxThrottle(self):
+        throttle = self.getBackwardMaxThrottle()
+        if self.backwardMaxThrottle.isModified():
+            if throttle >=10:
+                self.dashboard.set_backward_max_throttle(throttle)
+                self.backwardMaxThrottle.clearFocus()
+        self.backwardMaxThrottle.setModified(False)
+
     def setIcon(self):
         self.appIcon = QIcon('logo.png')
         self.setWindowIcon(self.appIcon)
@@ -501,20 +579,22 @@ class EegCarDashboardWindow(QWidget):
         self.w_keep_countdown = 0
         self.x_keep_countdown = 0
         self.default_keep_countdown = 60
+        self.keep_mode = False
 
     def is_keep_mode(self, ignore_key):
         # if key is 'w' -> w_keep_countdown
         # if key is 'x' -> x_keep_countdown
         # ignore several 's' key while chountdown number to zero
-        if ignore_key == Qt.Key_S: 
-            if self.w_keep_countdown > 0:
-                self.w_keep_countdown = self.w_keep_countdown - 1
-                print "w keep countdown %d" % self.w_keep_countdown
-                return True
-            if self.x_keep_countdown > 0:
-                self.x_keep_countdown = self.x_keep_countdown - 1
-                print "x keep countdown %d" % self.x_keep_countdown
-                return True
+        if self.keep_mode:
+            if ignore_key == Qt.Key_S: 
+                if self.w_keep_countdown > 0:
+                    self.w_keep_countdown = self.w_keep_countdown - 1
+                    print "w keep countdown %d" % self.w_keep_countdown
+                    return True
+                if self.x_keep_countdown > 0:
+                    self.x_keep_countdown = self.x_keep_countdown - 1
+                    print "x keep countdown %d" % self.x_keep_countdown
+                    return True
         return False
 
     def go_to_keep_mode(self, key):
@@ -525,7 +605,6 @@ class EegCarDashboardWindow(QWidget):
             self.x_keep_countdown = self.default_keep_countdown
                 
     def keyPressEvent(self, event):
-        self.dashboard.set_max_throttle(self.getMaxThrottle())
 
         if self.is_keep_mode(event.key()):
             return
@@ -552,7 +631,7 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_A:
             self.dashboard.set_key_input('a')
-            #self.dashboard.turn_left()
+            self.dashboard.turn_left()
 
         if event.key() == Qt.Key_X:
             self.dashboard.set_key_input('x')
@@ -560,7 +639,7 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_D:
             self.dashboard.set_key_input('d')
-            #self.dashboard.turn_right()
+            self.dashboard.turn_right()
 
         if event.key() == Qt.Key_B:
             self.dashboard.set_key_input('b')
