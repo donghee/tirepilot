@@ -268,7 +268,7 @@ class EegCarDashboard(QPygletWidget):
                 if self.rc_mode_is_throttle_up == False:
                     self.just_forward()
                     self.rc_mode_is_throttle_up = True
-                    print "RC Mode: COMMAND FORWARD"
+                    # print "RC Mode: COMMAND FORWARD"
                 prev_throttle = throttle
                 return
                 #self.forward(throttle)
@@ -276,7 +276,7 @@ class EegCarDashboard(QPygletWidget):
                 if self.rc_mode_is_throttle_up == False:
                     self.backward()
                     self.rc_mode_is_throttle_up = True
-                    print "RC Mode: COMMAND BACKWARD"
+                    # print "RC Mode: COMMAND BACKWARD"
                 return
         else: # if _throttle is 0, rc is not connected
             prev_throttle = 0
@@ -343,8 +343,6 @@ class EegCarDashboard(QPygletWidget):
     def forward(self, throttle=None):
         self.init_images()
 
-        # self.wheel.forward(self.max_throttle)
-        # self.set_throttle(self.max_throttle)
         if throttle == None:
             throttle = self.max_throttle
             self.wheel.forward(throttle)
@@ -420,10 +418,10 @@ class EegCarDashboardWindow(QWidget):
     def remote_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_rc_mode(True)
-            print 'SET_RC_MODE'
+            # print 'SET_RC_MODE'
         else:
             self.dashboard.set_rc_mode(False)
-            print 'CLEAR_RC_MODE'
+            # print 'CLEAR_RC_MODE'
 
     def keep_mode_control(self, state):
         if state == QtCore.Qt.Checked:
@@ -434,10 +432,10 @@ class EegCarDashboardWindow(QWidget):
     def stright_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_rc_stright_mode(True)
-            print 'SET_RC_STRIGHT_MODE'
+            # print 'SET_RC_STRIGHT_MODE'
         else:
             self.dashboard.set_rc_stright_mode(False)
-            print 'CLEAR_RC_STRIGHT_MODE'
+            # print 'CLEAR_RC_STRIGHT_MODE'
 
     def update_battery_status(self, _batt48, _batt24):
         self.batt48(str(_batt48))
@@ -446,7 +444,8 @@ class EegCarDashboardWindow(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         self.setWindowTitle("Pilot Dashboard")
-        self.setGeometry(300, 300, 750, 800)
+        self.setGeometry(0, 45, 750, 800)
+        # self.setGeometry(300, 300, 750, 800)
         self.connectButton = QPushButton('Connect', self)
         self.dashboard = EegCarDashboard()
 
@@ -457,7 +456,7 @@ class EegCarDashboardWindow(QWidget):
         self.rc_mode = QCheckBox('R&emote control', self)
         self.rc_mode.stateChanged.connect(self.remote_control)
 
-        self.rc_stright_mode = QCheckBox('RC Stright', self)
+        self.rc_stright_mode = QCheckBox('RC& Stright', self)
         self.rc_stright_mode.stateChanged.connect(self.stright_control)
 
         self.keep_mode = QCheckBox('K&eep Mode', self)
