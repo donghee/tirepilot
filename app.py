@@ -175,6 +175,7 @@ class EegCarDashboard(QPygletWidget):
         self.rc_stright_mode = False
         self.rc_mode_is_forward = True
         self.rc_mode_is_throttle_up = True
+        self.brake()
 
     def set_rc_mode(self, mode):
         self.rc_mode = mode
@@ -222,11 +223,12 @@ class EegCarDashboard(QPygletWidget):
             if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
                 if self.rc_stright_mode:
                     if rudo < 30:
-                        # rudo = 35
-                        rudo = 40
+                        #rudo = 1
+                        rudo = 35
+                        #rudo = 40
                     elif rudo > 70:
-                        # rudo = 65
-                        rudo = 60
+                        rudo = 65
+                        #rudo = 60
                     else:
                         rudo = 50
                 self.set_steering(int(rudo))
@@ -282,7 +284,7 @@ class EegCarDashboard(QPygletWidget):
             prev_throttle = 0
             self.rc_mode_is_throttle_up = False
             #self.stop()
-            self.brake()
+            # self.brake()
 
     def on_draw(self):
         self.update()
@@ -444,13 +446,13 @@ class EegCarDashboardWindow(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         self.setWindowTitle("Pilot Dashboard")
-        self.setGeometry(0, 45, 750, 800)
+        self.setGeometry(0, 0, 750, 800)
         # self.setGeometry(300, 300, 750, 800)
-        self.connectButton = QPushButton('Connect', self)
+        # self.connectButton = QPushButton('Connect', self)
         self.dashboard = EegCarDashboard()
 
         self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.connectButton)
+        # self.layout.addWidget(self.connectButton)
 
         # Drive Setting
         self.rc_mode = QCheckBox('R&emote control', self)
@@ -532,7 +534,7 @@ class EegCarDashboardWindow(QWidget):
         self.layout.addWidget(drive_groupbox)
         self.layout.addWidget(throttle_groupbox)
         self.layout.addWidget(steering_groupbox)
-        self.layout.addWidget(self.connectButton)
+        # self.layout.addWidget(self.connectButton)
 
         self.setIcon()
         self.setButton()
@@ -571,8 +573,9 @@ class EegCarDashboardWindow(QWidget):
         self.setWindowIcon(self.appIcon)
 
     def setButton(self):
-        self.connectButton.move(50,100)
-        self.connectButton.clicked.connect(self.connectMotor)
+        return 
+        # self.connectButton.move(50,100)
+        # self.connectButton.clicked.connect(self.connectMotor)
 
     def init_keep_mode(self):
         self.w_keep_countdown = 0
