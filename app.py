@@ -16,6 +16,23 @@ from spin import *
 prev_rudo = 0
 prev_throttle = 0
 
+import os
+
+def we_are_frozen():
+    """Returns whether we are frozen via py2exe.
+    This will affect how we find out where we are located."""
+
+    return hasattr(sys, "frozen")
+
+def module_path():
+    """ This will get us the program's directory,
+    even if we are frozen using py2exe"""
+
+    if we_are_frozen():
+        return os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
+
+    return os.path.dirname(unicode(__file__, sys.getfilesystemencoding( )))
+
 class EegCarDashboard(QPygletWidget):
 
     def on_init(self):
@@ -29,8 +46,8 @@ class EegCarDashboard(QPygletWidget):
 
     def init_pilotdriver(self):
         if sys.platform == 'win32':
-            steering_port_name = "COM4"
-            wheel_port_name = "COM3"
+            steering_port_name = "COM4" # motion control
+            wheel_port_name = "COM3" # mbed
         elif sys.platform == 'darwin':
             # steering_port_name = "/dev/tty.usbserial-A901NMD9"
             # wheel_port_name = "/dev/tty.usbmodem1432"
@@ -50,24 +67,24 @@ class EegCarDashboard(QPygletWidget):
 
         pyglet.font.add_file(
             os.path.join(
-                os.path.dirname(__file__),
+                module_path(), # for py2exe
+                # os.path.dirname(__file__), 
                 'resources/NewMedia.ttf')
         )
         newmedia_font = pyglet.font.load('NewMedia')
         pyglet.font.add_file(
             os.path.join(
-                os.path.dirname(__file__),
+                module_path(),
+                # os.path.dirname(__file__),
                 'resources/pf_ronda_seven.ttf')
         )
         ronda_seven_font = pyglet.font.load('PF Ronda Seven')
         self.throttle_label = pyglet.text.Label('Throttle: 0',
                                                 font_name='NewMedia',
-                                                #font_name='PF Ronda Seven',
                                                 font_size= 36,
                                                 anchor_x='left', anchor_y='center')
         self.steering_label = pyglet.text.Label('Steering: 50',
                                                 font_name='NewMedia',
-                                                #font_name='PF Ronda Seven',
                                                 font_size= 36,
                                                 anchor_x='left', anchor_y='center')
 
@@ -695,3 +712,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
