@@ -192,6 +192,9 @@ class EegCarDashboard(QPygletWidget):
         self.rc_stright_mode = False
         self.rc_mode_is_forward = True
         self.rc_mode_is_throttle_up = True
+
+        self.ignore_eeg_input = False # priority command for rc than eeg key
+
         self.brake()
 
     def set_rc_mode(self, mode):
@@ -200,6 +203,13 @@ class EegCarDashboard(QPygletWidget):
             print "Dashboard RC Mode"
         else:
             print "Dashboard Pilot Mode"
+
+    def set_ignore_eeg_input(self, state):
+        self.ignore_eeg_input = state
+        if self.ignore_eeg_input == True:
+            print "Dashboard Ignore EEG"
+        else:
+            print "Dashboard Accept EEG"
 
     def set_rc_stright_mode(self, mode):
         self.rc_stright_mode = mode
@@ -240,7 +250,6 @@ class EegCarDashboard(QPygletWidget):
             if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
                 if self.rc_stright_mode:
                     if rudo < 30:
-                        #rudo = 1
                         rudo = 35
                         #rudo = 40
                     elif rudo > 70:
@@ -248,6 +257,8 @@ class EegCarDashboard(QPygletWidget):
                         #rudo = 60
                     else:
                         rudo = 50
+                # TODO: ignore eeg key input
+                # self.set_ignore_eeg_input(True)
                 self.set_steering(int(rudo))
                 self.steering.turn_by_position(int(rudo), pot)
                 prev_rudo = rudo
@@ -289,18 +300,20 @@ class EegCarDashboard(QPygletWidget):
                     self.rc_mode_is_throttle_up = True
                     # print "RC Mode: COMMAND FORWARD"
                 prev_throttle = throttle
+                # TODO: ignore eeg key input if detect rc forward or backward
+                self.set_ignore_eeg_input(True)
                 return
-                #self.forward(throttle)
             else:
                 if self.rc_mode_is_throttle_up == False:
                     self.backward()
                     self.rc_mode_is_throttle_up = True
                     # print "RC Mode: COMMAND BACKWARD"
+                self.set_ignore_eeg_input(True)
                 return
         else: # if _throttle is 0, rc is not connected
             prev_throttle = 0
             self.rc_mode_is_throttle_up = False
-            #self.stop()
+            # self.stop()
             # self.brake()
 
     def on_draw(self):
@@ -448,6 +461,12 @@ class EegCarDashboardWindow(QWidget):
         else:
             self.keep_mode = False
 
+    def ignore_eeg_input_control(self, state):
+        if state == QtCore.Qt.Checked:
+            self.dashboard.set_ignore_eeg_input(True)
+        else:
+            self.dashboard.set_ignore_eeg_input(False)
+
     def stright_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_rc_stright_mode(True)
@@ -472,14 +491,17 @@ class EegCarDashboardWindow(QWidget):
         # self.layout.addWidget(self.connectButton)
 
         # Drive Setting
-        self.rc_mode = QCheckBox('R&emote control', self)
+        self.rc_mode = QCheckBox('Remote control', self)
         self.rc_mode.stateChanged.connect(self.remote_control)
 
-        self.rc_stright_mode = QCheckBox('RC& Stright', self)
+        self.rc_stright_mode = QCheckBox('RC Stright', self)
         self.rc_stright_mode.stateChanged.connect(self.stright_control)
 
-        self.keep_mode = QCheckBox('K&eep Mode', self)
+        self.keep_mode = QCheckBox('Keep Mode', self)
         self.keep_mode.stateChanged.connect(self.keep_mode_control)
+
+        self.ignore_eeg_input = QCheckBox('Ignore Eeg input', self)
+        self.ignore_eeg_input.stateChanged.connect(self.ignore_eeg_input_control)
 
         #self.rc_mode.toggle() # Default RC Mode
         self.batt48 = QLabel('Batt1 (v): ', self)
@@ -490,6 +512,7 @@ class EegCarDashboardWindow(QWidget):
         drive_layout.addWidget(self.rc_mode)
         drive_layout.addWidget(self.rc_stright_mode)
         drive_layout.addWidget(self.keep_mode)
+        drive_layout.addWidget(self.ignore_eeg_input)
 
         drive_groupbox = QtGui.QGroupBox("Drive Status & Setting")
         drive_groupbox.setLayout(drive_layout)
@@ -506,13 +529,13 @@ class EegCarDashboardWindow(QWidget):
         self.throttle_label = QLabel('Manual Throttle (%): ', self)
         self.steering_label = QLabel('Manual Steering (%): ', self)
 
-        self.maxThrottle = QLineEdit('40') # 45 is default
+        self.maxThrottle = QLineEdit('40') # 40 is default
         # self.maxThrottle.textChanged[str].connect(self.setMaxThrottle)
         self.maxThrottle.editingFinished.connect(self.setMaxThrottle)
         self.maxThrottle.setMaxLength(2)
         self.maxThrottle.setMaximumWidth(40)
 
-        self.backwardMaxThrottle = QLineEdit('40') # 45 is default
+        self.backwardMaxThrottle = QLineEdit('40') # 40 is default
         # self.maxThrottle.textChanged[str].connect(self.setMaxThrottle)
         self.backwardMaxThrottle.editingFinished.connect(self.setBackwardMaxThrottle)
         self.backwardMaxThrottle.setMaxLength(2)
@@ -521,12 +544,11 @@ class EegCarDashboardWindow(QWidget):
         throttle_layout = QHBoxLayout(self)
         throttle_layout.addWidget(self.throttle_label)
         throttle_layout.addWidget(self.throttle_slider)
-        throttle_layout.addWidget(QLabel("Max:"))
+        throttle_layout.addWidget(QLabel("Forward Max:"))
         throttle_layout.addWidget(self.maxThrottle)
 
-        throttle_layout.addWidget(QLabel("B Max:"))
+        throttle_layout.addWidget(QLabel("Backward Max:"))
         throttle_layout.addWidget(self.backwardMaxThrottle)
-
 
         throttle_groupbox = QtGui.QGroupBox("Throttle Range")
         throttle_groupbox.setLayout(throttle_layout)
@@ -597,7 +619,7 @@ class EegCarDashboardWindow(QWidget):
     def init_keep_mode(self):
         self.w_keep_countdown = 0
         self.x_keep_countdown = 0
-        self.default_keep_countdown = 60
+        self.default_keep_countdown = 55
         self.keep_mode = False
 
     def is_keep_mode(self, ignore_key):
@@ -625,6 +647,12 @@ class EegCarDashboardWindow(QWidget):
                 
     def keyPressEvent(self, event):
 
+        if self.dashboard.rc_mode == True and self.dashboard.ignore_eeg_input ==True:
+            self.ignore_eeg_input.setChecked(True)
+            if event.key():
+                self.dashboard.set_key_input('Ignore')
+            return
+        
         if self.is_keep_mode(event.key()):
             return
 
