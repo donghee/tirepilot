@@ -3,7 +3,6 @@
 from PySide.QtCore import *
 from PySide.QtGui import *
 from PySide import QtCore, QtGui, QtOpenGL
-
 from dashboard import *
 
 DEFAULT_MAX_THROTTLE = 40
@@ -72,6 +71,12 @@ class EegCarDashboardWindow(QWidget):
         else:
             self.keep_mode = False
             print 'Keyboard Mode'
+
+    def ignore_eeg_input_control(self, state):
+        if state == QtCore.Qt.Checked:
+            self.dashboard.set_ignore_eeg_input(True)
+        else:
+            self.dashboard.set_ignore_eeg_input(False)
 
     def ignore_eeg_input_control(self, state):
         if state == QtCore.Qt.Checked:
@@ -323,7 +328,7 @@ class EegCarDashboardWindow(QWidget):
                 return
             else: 
                 self.ignore_eeg_input.setChecked(False)
-        
+       
         if self.is_keep_mode(event.key()):
             return
 
