@@ -50,8 +50,8 @@ class PMC1HSUSBDriver:
         seconds = int(ticks/(self.speed*7))
         self.ending_time = time.time() + seconds
         #return time.sleep(seconds) #24v 16
-        print time.time()
-        print self.ending_time
+        # print time.time()
+        # print self.ending_time
         # print "DEBUG ISWORKING %t" % self.ending_time
 
     def isworking(self):

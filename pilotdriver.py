@@ -1,6 +1,5 @@
 import serial
 import logging
-import sys
 
 from wheeldriver import WheelDriver
 from steeringdriver import PMC1HSUSBDriver
@@ -32,6 +31,11 @@ class SteeringPilot:
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
 
+    def get_current_location(self):
+        return self.stepping_driver.get_current_pos()
+
+    def get_current_steering(self):
+        return (self.stepping_driver.get_current_pos()/1000 + 100) / 2
 
     def turn_by_position(self, percent, pot): # limit 100000
         if self.stepping_driver.isworking():
@@ -58,6 +62,7 @@ class SteeringPilot:
         # target_location = (int(self.turn_ticks/100.0) * (100-percent)) - (self.turn_ticks/2)
         delta_ticks = target_location - self.current_location
         self.logger.info('Current: %d, Target: %d, Delta ticks: %d', self.current_location, target_location, delta_ticks)
+
         if delta_ticks >= 0:
             self.stepping_driver.forward(abs(delta_ticks))
         else:
@@ -65,7 +70,6 @@ class SteeringPilot:
 
         # TEST MOCK
         # self.stepping_driver.spy_set_current_pos(target_location)
-
 
     def turn_by_position_limit_200000(self, percent, pot):
         if self.stepping_driver.isworking():
@@ -79,7 +83,7 @@ class SteeringPilot:
 
         if self.current_location < -190000 or 190000 < self.current_location:
             # print "Range Overflow! %d" % self.current_location
-            self.logger.info('Steering Range Overflow Current: %d Turn right: %d', self.current_location, delta_ticks) # TODO: overflow processing using pot
+            self.logger.info('Steering Range Overflow Current: %d', self.current_location) # TODO: overflow processing using pot
             self.current_location = self.stepping_driver.get_current_pos()
             if self.current_location < -190000:
                 overflow_delta_ticks = -190000 - self.current_location
@@ -109,7 +113,14 @@ class SteeringPilot:
         self.recentcommand = 'turn_left'        
         # TODO: self.stepping_driver.get_current_pos() is neutral + turn_ticks
 
-        delta_ticks = int(absolute_angle * self.turn_ticks)
+        self.current_location = self.stepping_driver.get_current_pos()
+        delta_ticks = self.turn_ticks - self.current_location
+        # # if self.current_location >= 0:
+        # #     delta_ticks = self.turn_ticks - abs(self.current_location)
+        # # else:
+        # #     delta_ticks = self.turn_ticks + abs(self.current_location)
+
+        # delta_ticks = int(absolute_angle * self.turn_ticks)
         self.logger.info('Current: %d Turn left: %d', self.current_location, delta_ticks)
         self.stepping_driver.forward(delta_ticks)
         self.current_location += delta_ticks
@@ -140,7 +151,15 @@ class SteeringPilot:
             absolute_angle = 2
 
         self.recentcommand = 'turn_right'        
-        delta_ticks = int(absolute_angle * self.turn_ticks)
+
+        self.current_location = self.stepping_driver.get_current_pos()
+        delta_ticks = self.turn_ticks + self.current_location
+        # # if self.current_location >= 0:
+        # #     delta_ticks = self.turn_ticks + abs(self.current_location)
+        # # else:
+        # #     delta_ticks = self.turn_ticks - abs(self.current_location)
+
+        # delta_ticks = int(absolute_angle * self.turn_ticks)
         self.logger.info('Current: %d Turn right: %d', self.current_location, delta_ticks)
         self.stepping_driver.backward(delta_ticks)
         self.current_location -= delta_ticks
@@ -167,21 +186,21 @@ class SteeringPilot:
             #print 'Finish Middle Position Pot: %d' % pot
         
     def neutral(self):
-        print "neutral0"
+        # print "neutral0"
         if self.stepping_driver.isworking(): return
-        print "neutral1"
+        # print "neutral1"
         self.recentcommand = 'neutral'
         self.logger.info('Current: %d, Neutral', self.stepping_driver.get_current_pos())
-        print "neutral2"
+        # print "neutral2"
         self.current_location = self.stepping_driver.get_current_pos()
         if self.current_location >= 0:
             self.stepping_driver.backward(abs(self.current_location))
-            print abs(self.current_location)
+            # print abs(self.current_location)
         else:
             self.stepping_driver.forward(abs(self.current_location))
-            print abs(self.current_location)
+            # print abs(self.current_location)
         self.current_location = 0
-        print "neutral3"
+        # print "neutral3"
         # TEST MOCK
         self.stepping_driver.spy_set_current_pos(self.current_location)
 

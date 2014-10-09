@@ -1,17 +1,14 @@
 # coding: utf-8
 
-import sys
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide import QtCore, QtGui, QtOpenGL
+from PySide.QtCore import QSize
 from qpygletwidget import QPygletWidget
-
 import pyglet
-from pyglet.window import key
-from pyglet.window import FPSDisplay
-from pilotdriver import SteeringPilot, WheelPilot
 
-from spin import *
+import sys
+from pilotdriver import SteeringPilot, WheelPilot
+from spin import Spin
+
+DEFAULT_MAX_THROTTLE = 40
 
 prev_rudo = 0
 prev_throttle = 0
@@ -34,6 +31,7 @@ def module_path():
     return os.path.dirname(unicode(__file__, sys.getfilesystemencoding( )))
 
 class EegCarDashboard(QPygletWidget):
+    is_steering_info_update_cycle = 0
 
     def on_init(self):
         self.init_spin();
@@ -49,8 +47,6 @@ class EegCarDashboard(QPygletWidget):
             steering_port_name = "COM4" # motion control
             wheel_port_name = "COM3" # mbed
         elif sys.platform == 'darwin':
-            # steering_port_name = "/dev/tty.usbserial-A901NMD9"
-            # wheel_port_name = "/dev/tty.usbmodem1432"
             steering_port_name = "/dev/ttys004" # mock
             wheel_port_name = "/dev/ttys007" # mock
         self.steering = SteeringPilot(steering_port_name, 4000) # default 4000
@@ -59,8 +55,8 @@ class EegCarDashboard(QPygletWidget):
         self.steering.set_turn_ticks(50000) # half turn
 
         self.wheel = WheelPilot(wheel_port_name)
-        self.set_max_throttle(40) # default 40
-        self.set_backward_max_throttle(40) # default 40
+        self.set_max_throttle(DEFAULT_MAX_THROTTLE)
+        self.set_backward_max_throttle(DEFAULT_MAX_THROTTLE)
 
     def init_spin(self):
         self.spin = Spin()
@@ -176,15 +172,14 @@ class EegCarDashboard(QPygletWidget):
         if self.steering.get_recentcommand() == 'turn_right':
             self.right_image.blit(image_x+space,image_y)
             self.right_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
-            # TODO: (200000-self.steering.get_current_pos())/4000 +50
-            # self.set_steering(int(50+1*50)) # TODO change by turn max angle'
             return
 
         if self.steering.get_recentcommand() == 'turn_left':
             self.left_image.blit(image_x-space,image_y)
             self.left_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
-            # TODO: (self.steering.get_current_pos() - 200000)/4000
-            # self.set_steering(int(50-1*50)) # TODO change by turn max angle'
+            return
+
+        if self.steering.get_recentcommand() == 'neutral':
             return
 
         # # next forward
@@ -197,9 +192,14 @@ class EegCarDashboard(QPygletWidget):
         tire_info_space_x = 469
         tire_info_space_y = 139
 
-        if self.steering.isworking():
-            self.draw_working_steering(image_x, image_y, space, tire_info_space_x, tire_info_space_y)
-            return
+        self.is_steering_info_update_cycle = self.is_steering_info_update_cycle + 1
+
+        if (self.is_steering_info_update_cycle % 10) == 0:
+            self.set_steering(self.steering.get_current_steering()) # this makes speed slow
+            
+            if self.steering.isworking():
+                self.draw_working_steering(image_x, image_y, space, tire_info_space_x, tire_info_space_y)
+                return
 
         self.draw_background(image_x, image_y)
         
@@ -207,6 +207,7 @@ class EegCarDashboard(QPygletWidget):
         # print "STEERING: %s" % self.steering.get_recentcommand()
         # print "WHEEL: %s" % self.wheel.get_recentcommand()
 
+            
         if self.wheel.get_recentcommand() == 'forward' and self.steering.get_recentcommand() == 'neutral':
             self.up_image.blit(image_x,image_y+space)
             self.up_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
@@ -222,16 +223,13 @@ class EegCarDashboard(QPygletWidget):
         if self.steering.get_recentcommand() == 'turn_right':
             self.right_image.blit(image_x+space,image_y)
             self.right_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
-            # self.set_steering(int(50+1*50)) # TODO change by turn max angle'
 
         if self.steering.get_recentcommand() == 'turn_left':
             self.left_image.blit(image_x-space,image_y)
             self.left_tire.blit(image_x+tire_info_space_x,image_y+tire_info_space_y)
-            # self.set_steering(int(50-1*50)) # TODO change by turn max angle'
 
     def init_rc_mode(self):
-        #self.rc_mode = True
-        self.rc_mode = False
+        self.set_rc_mode(False)
         self.rc_stright_mode = False
         self.rc_mode_is_forward = True
         self.rc_mode_is_throttle_up = True
@@ -242,24 +240,12 @@ class EegCarDashboard(QPygletWidget):
 
     def set_rc_mode(self, mode):
         self.rc_mode = mode
-        if self.rc_mode == True:
-            print "Dashboard RC Mode"
-        else:
-            print "Dashboard Pilot Mode"
 
     def set_ignore_eeg_input(self, state):
         self.ignore_eeg_input = state
-        if self.ignore_eeg_input == True:
-            print "Dashboard Ignore EEG"
-        else:
-            print "Dashboard Accept EEG"
 
     def set_rc_stright_mode(self, mode):
         self.rc_stright_mode = mode
-        if self.rc_stright_mode == True:
-            print "Dashboard RC STRIGHT Mode"
-        else:
-            print "Dashboard RC FREE L/R Mode"
 
     def _map(self, value, start1, stop1, start2, stop2):
         # TODO: _map(0, 3000, 2000, 0, 100) ???
@@ -321,7 +307,7 @@ class EegCarDashboard(QPygletWidget):
                 
                 # TODO: if not self.steering.isworking():
                 if not self.steering.isworking():                
-                    self.set_steering(int(rudo))
+                    # self.set_steering(int(rudo))
                     self.steering.turn_by_position(int(rudo), self.get_steering_pot())
                     prev_rudo = rudo
                 # TODO: drawing turn left and right arrow
@@ -387,20 +373,12 @@ class EegCarDashboard(QPygletWidget):
             # self.brake()
 
     def update(self):
-        # global prev_rudo, prev_throttle
         self.wheel.update_data()
 
         if self.rc_mode == True:
             self.update_rudo() # It's importance that update sequence (rudo, elev, throttle)
             self.update_elev()
             self.update_throttle()
-            # return
-
-        # pot = self.get_steering_pot()
-        # RC Control
-        # self.update_rudo()
-        # self.update_elev()
-        # self.update_throttle()
 
     def on_draw(self):
         self.update()
@@ -477,36 +455,19 @@ class EegCarDashboard(QPygletWidget):
         self.wheel.backward(self.backward_max_throttle) # 45 is throttle power
         #self.steering.neutral()
 
-    def draw_turn_right(self):
-        self.init_images()
-        self.right_image = self.init_image("images/right_clicked.jpg")
-        
     def turn_right(self):
-        # self.draw_turn_right()
         if self.steering.get_recentcommand() == 'turn_right': return
         self.wheel.turn_right(self.max_throttle)
         self.set_throttle(self.max_throttle)
         self.steering.turn_right(1)
-        # self.set_steering(int(50+1*50))
-
-    def draw_turn_left(self):
-        # self.init_images()
-        self.left_image = self.init_image("images/left_clicked.jpg")
 
     def turn_left(self):
-        # self.draw_turn_left()
         if self.steering.get_recentcommand() == 'turn_left': return
         self.wheel.turn_left(self.max_throttle) # self.max_throttle is throttle power
         self.set_throttle(self.max_throttle)
         self.steering.turn_left(1)
-        # self.set_steering(int(50-1*50))
-
-    def draw_stop(self):
-        self.init_images()
-        self.stop_image = self.init_image('images/stop_clicked.jpg')
 
     def stop(self):
-        # self.draw_stop()
         self.wheel.stop()
         self.wheel.brake()        
         self.set_throttle(0)

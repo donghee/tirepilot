@@ -1,12 +1,11 @@
 # coding: utf-8
 
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide import QtCore, QtGui, QtOpenGL
+from PySide import QtCore, QtGui
+from PySide.QtGui import QWidget, QLineEdit, QLabel, QIcon, QApplication, QVBoxLayout, QCheckBox, QPushButton, QHBoxLayout, QSlider, QStatusBar
+from PySide.QtCore import Qt, SIGNAL
 
-from dashboard import *
-
-DEFAULT_MAX_THROTTLE = 40
+import sys
+from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE
 
 class EegCarDashboardWindow(QWidget):
 
@@ -28,75 +27,71 @@ class EegCarDashboardWindow(QWidget):
         # while check busy
         ## read position
         ## print 'current pos %d' % x
-        self.steering_current_pos.setText(str(x))
+        self.steering_set_current_pos(x)
+
+    def steering_set_current_pos(self, x):
+        self.steering_current_pos.setText(str(x))    
 
     def steering_move_left(self):
         ticks = int(self.steering_move_ticks.text())
         x = -1 * ticks
         # MOVE!
-        print 'Steering left'
+        self.setMessage('Steering left')
         self.steering_update_current_pos(x)
 
     def steering_move_right(self):
         ticks = int(self.steering_move_ticks.text())
         x = 1 * ticks
         # MOVE!
-        print 'Steering right'
+        self.setMessage('Steering right')
         self.steering_update_current_pos(x)
 
     def steering_reset_position(self):
         x = 0
         # RESET
-        print 'Steering reset'
+        self.setMessage('Steering reset')
         self.steering_update_current_pos(x)
 
-    # def setMessage(self, msg):
-    #     print msg
-
-    # def connectMotor(self):
-    #     self.setMessage('connected')
-    #     self.dashboard.connect()
+    def setMessage(self, msg):
+        self.statusBar.showMessage(msg, 2000)
 
     def remote_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_rc_mode(True)
-            # print 'SET_RC_MODE'
+            self.setMessage('SET RC MODE')
         else:
             self.dashboard.set_rc_mode(False)
-            # print 'CLEAR_RC_MODE'
+            self.setMessage('CLEAR RC MODE')
 
     def keep_mode_control(self, state):
         if state == QtCore.Qt.Checked:
             self.keep_mode = True
-            print 'Keep Mode (EEG)'
+            self.setMessage('Keep Mode (EEG)')
         else:
             self.keep_mode = False
-            print 'Keyboard Mode'
+            self.setMessage('Keyboard Mode')
 
     def ignore_eeg_input_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_ignore_eeg_input(True)
+            self.setMessage('Ignore EEG Input')
         else:
             self.dashboard.set_ignore_eeg_input(False)
+            self.setMessage('Access EEG Input')
 
     def stright_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_rc_stright_mode(True)
-            # print 'SET_RC_STRIGHT_MODE'
+            self.setMessage('RC STRIGHT Mode')
         else:
             self.dashboard.set_rc_stright_mode(False)
-            # print 'CLEAR_RC_STRIGHT_MODE'
-
-    # def update_battery_status(self, _batt48, _batt24):
-    #     self.batt48(str(_batt48))
-    #     self.batt24(str(_batt24))
+            self.setMessage('RC FREE L/R Mode')
 
     def __init__(self):
         QWidget.__init__(self)
-        self.setWindowTitle("Pilot Dashboard")
+        self.setWindowTitle("EEG Pilot Dashboard")
         self.setGeometry(0, 0, 750, 800)
         # self.setGeometry(300, 300, 750, 800)
-        # self.connectButton = QPushButton('Connect', self)
         self.dashboard = EegCarDashboard()
         self.dashboard.set_max_throttle(DEFAULT_MAX_THROTTLE)
         self.dashboard.set_backward_max_throttle(DEFAULT_MAX_THROTTLE)
@@ -116,12 +111,7 @@ class EegCarDashboardWindow(QWidget):
         self.ignore_eeg_input = QCheckBox('Ignore Eeg Input', self)
         self.ignore_eeg_input.stateChanged.connect(self.ignore_eeg_input_control)
 
-        #self.rc_mode.toggle() # Default RC Mode
-        # self.batt48 = QLabel('Batt1 (v): ', self)
-        # self.batt24 = QLabel('Batt2 (v): ', self)
         drive_layout = QHBoxLayout(self)
-        # drive_layout.addWidget(self.batt48)
-        # drive_layout.addWidget(self.batt24)
         drive_layout.addWidget(self.rc_mode)
         drive_layout.addWidget(self.rc_stright_mode)
         drive_layout.addWidget(self.keep_mode)
@@ -218,7 +208,10 @@ class EegCarDashboardWindow(QWidget):
         self.layout.addWidget(drive_groupbox)
         self.layout.addWidget(throttle_groupbox)
         self.layout.addWidget(steering_groupbox)
-        # self.layout.addWidget(self.connectButton)
+
+        self.statusBar = QStatusBar()
+        self.statusBar.showMessage('Ready', 2000)
+        self.layout.addWidget(self.statusBar)
 
         self.setIcon()
         self.show()
@@ -227,6 +220,18 @@ class EegCarDashboardWindow(QWidget):
         self.default_backgroundcolor = self.palette().color(QtGui.QPalette.Background)
         self.previos_steering = 50
         self.init_keep_mode()
+
+        # Timer For reading current steering position
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.readSteeringPos)
+        # check every second
+        self.timer.start(1000*1)  
+
+    def readSteeringPos(self):
+        # self.setMessage(str(self.dashboard.steering.get_current_steering()))
+        # TODO: is it thread safe?
+        # self.steering_set_current_pos(self.dashboard.steering.get_current_location())
+        return
 
     def getMaxThrottle(self):
         return int(self.maxThrottle.text())
@@ -250,7 +255,7 @@ class EegCarDashboardWindow(QWidget):
         if self.maxThrottle.isModified():
             if throttle >= 30: # throttle threshold is 30
                 self.dashboard.set_max_throttle(throttle)
-                print "Forward Max Throttle: %d" % throttle
+                self.setMessage("Forward Max Throttle: %d" % throttle)
                 self.maxThrottle.clearFocus()
         self.maxThrottle.setModified(False)
 
@@ -282,12 +287,14 @@ class EegCarDashboardWindow(QWidget):
             if ignore_key == Qt.Key_S: 
                 if self.w_keep_countdown > 0:
                     self.w_keep_countdown = self.w_keep_countdown - 1
-                    print "w keep countdown %d" % self.w_keep_countdown
+                    # print "w keep countdown %d" % self.w_keep_countdown
+                    self.setMessage("w keep countdown %d" % self.w_keep_countdown)
                     self.x_keep_countdown = 0
                     return True
                 if self.x_keep_countdown > 0:
                     self.x_keep_countdown = self.x_keep_countdown - 1
-                    print "x keep countdown %d" % self.x_keep_countdown
+                    # print "x keep countdown %d" % self.x_keep_countdown
+                    self.setMessage("x keep countdown %d" % self.x_keep_countdown)
                     self.w_keep_countdown = 0
                     return True
                 # if self.a_keep_countdown > 0:
@@ -308,11 +315,11 @@ class EegCarDashboardWindow(QWidget):
         if key == Qt.Key_X:
             self.x_keep_countdown = self.default_keep_countdown
 
-        if key == Qt.Key_A:
-            self.a_keep_countdown = self.default_keep_countdown
+        # if key == Qt.Key_A:
+        #     self.a_keep_countdown = self.default_keep_countdown
 
-        if key == Qt.Key_D:
-            self.d_keep_countdown = self.default_keep_countdown
+        # if key == Qt.Key_D:
+        #     self.d_keep_countdown = self.default_keep_countdown
                 
     def keyPressEvent(self, event):
         if self.dashboard.rc_mode == True :
