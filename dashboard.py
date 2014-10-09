@@ -465,18 +465,22 @@ class EegCarDashboard(QPygletWidget):
 
         if throttle == None:
             throttle = self.max_throttle
-            self.wheel.forward(throttle)
-            self.set_throttle(throttle)
-            self.steering.neutral()
+        self.wheel.forward(throttle)
+        self.set_throttle(throttle)
+        self.steering.neutral()
+        
 
     def draw_backward(self):
         self.init_images()
         self.down_image = self.init_image("images/down_clicked.jpg")
 
-    def backward(self):
+    def backward(self, throttle=None):
         # self.draw_backward()
+        if throttle == None:
+            throttle = self.backward_max_throttle
         self.wheel.backward(self.backward_max_throttle) # 45 is throttle power
         #self.steering.neutral()
+        self.set_throttle(-throttle)
 
     def turn_right(self):
         if self.steering.get_recentcommand() == 'turn_right': 

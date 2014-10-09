@@ -8,6 +8,8 @@ import sys
 import time
 from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE, DEFAULT_MAX_BACK_THROTTLE, DEFAULT_STEERING_SPEED
 
+START_ACCEL_TIME = 4000
+
 class EegCarDashboardWindow(QWidget):
 
     def setSliderMaxThrottle(self, x):
@@ -289,6 +291,25 @@ class EegCarDashboardWindow(QWidget):
         # # check every half second
         # self.power_handle_timer.start(500)
 
+        # Timer For Start Accel
+        self.start_accel_timer = QtCore.QTimer()
+        # self.start_accel_timer.singleShot(5000, self.end_start_accel_handle)
+        self.can_start_accel = True
+
+    def set_start_accel(self, value):
+        self.can_start_accel = value
+
+    def get_start_accel(self):
+        return self.can_start_accel
+
+    def end_start_accel_handle(self):
+        if self.dashboard.wheel.get_recentcommand() == 'forward':
+            print "END: Forward START ACCEL, Restore %d" % self.getMaxThrottle()
+            self.dashboard.forward()
+        if self.dashboard.wheel.get_recentcommand() == 'backward':
+            print "END: Backward START ACCEL, Restore %d" % self.getBackwardMaxThrottle()
+            self.dashboard.backward()
+
     # def update_power_handle(self):
     #     if self.power_handle_mode:
     #         self.dashboard.update_power_handle()
@@ -354,7 +375,6 @@ class EegCarDashboardWindow(QWidget):
         # if key is 'x' -> x_keep_countdown
         # ignore several 's' key while chountdown number to zero
 
-
         if self.keep_mode:
             if ignore_key == Qt.Key_S: 
                 if self.dashboard.power_handle_mode == True:
@@ -389,11 +409,12 @@ class EegCarDashboardWindow(QWidget):
         if key == Qt.Key_X:
             self.x_keep_countdown = self.default_keep_countdown
 
-        # if key == Qt.Key_A:
-        #     self.a_keep_countdown = self.default_keep_countdown
+        # A, D make a w_keep_countdown FOR powerhandle
+        if key == Qt.Key_A:
+            self.w_keep_countdown = self.default_keep_countdown
 
-        # if key == Qt.Key_D:
-        #     self.d_keep_countdown = self.default_keep_countdown
+        if key == Qt.Key_D:
+            self.w_keep_countdown = self.default_keep_countdown
                 
     def keyPressEvent(self, event):
         if self.dashboard.rc_mode == True :
@@ -413,10 +434,17 @@ class EegCarDashboardWindow(QWidget):
         if event.key() == Qt.Key_S:
             self.dashboard.set_key_input('s')
             self.dashboard.stop()
+            self.set_start_accel(True)
 
         if event.key() == Qt.Key_W:
             self.dashboard.set_key_input('w')
-            self.dashboard.forward()
+            if self.get_start_accel() == True:
+                throttle = self.getMaxThrottle() + 20
+                self.dashboard.forward(throttle)
+                self.set_start_accel(False)
+                self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel_handle)
+            else:
+                self.dashboard.forward()
 
         if event.key() == Qt.Key_A:
             self.dashboard.set_key_input('a')
@@ -424,7 +452,15 @@ class EegCarDashboardWindow(QWidget):
 
         if event.key() == Qt.Key_X:
             self.dashboard.set_key_input('x')
-            self.dashboard.backward()
+
+            if self.get_start_accel() == True:
+                throttle = self.getBackwardMaxThrottle() + 20
+                self.dashboard.backward(throttle)
+                self.set_start_accel(False)
+                self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel_handle)
+            else:
+                self.dashboard.backward()
+
 
         if event.key() == Qt.Key_D:
             self.dashboard.set_key_input('d')

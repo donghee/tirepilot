@@ -33,8 +33,9 @@ int relay_on_delay_second = 1;
 float motor_throttle = 0.0;
 
 Timer motor_off_relay_timer;
-int relay_off_delay_second = 2.5;
- 
+int relay_off_delay_second = 2.5; // CF version
+// int relay_off_delay_second = 1.5; // 2014 10 10
+
 // void throttle_set_(float _throttle)
 // {
 //   // motor relay on
