@@ -5,11 +5,14 @@ from qpygletwidget import QPygletWidget
 import pyglet
 
 import sys
+import time
 from pilotdriver import SteeringPilot, WheelPilot
 from spin import Spin
 
 DEFAULT_MAX_THROTTLE = 40
+DEFAULT_MAX_BACK_THROTTLE = 50
 DEFAULT_STEERING_SPEED = 4000
+# DEFAULT_STEERING_SPEED = 3000
 DEFAULT_STEERING_EEG_TURN_TICKS = 50000
 
 prev_rudo = 0
@@ -42,6 +45,7 @@ class EegCarDashboard(QPygletWidget):
         self.init_pilotdriver()
         self.init_rc_mode()
 
+
         self.setMinimumSize(QSize(640, 480))
 
     def init_pilotdriver(self):
@@ -61,7 +65,8 @@ class EegCarDashboard(QPygletWidget):
 
         self.wheel = WheelPilot(wheel_port_name)
         self.set_max_throttle(DEFAULT_MAX_THROTTLE)
-        self.set_backward_max_throttle(DEFAULT_MAX_THROTTLE)
+        self.set_backward_max_throttle(DEFAULT_MAX_BACK_THROTTLE)
+        self.init_power_handle_mode()
 
     def init_spin(self):
         self.spin = Spin()
@@ -243,6 +248,12 @@ class EegCarDashboard(QPygletWidget):
 
         self.brake()
 
+    def init_power_handle_mode(self):
+        self.set_power_handle_mode(False)
+
+    def set_power_handle_mode(self, mode):
+        self.power_handle_mode = mode
+
     def set_steering_eeg_turn_ticks(self, ticks):
         # STEERING_EEG_TURN_TICKS = ticks
         self.steering.set_turn_ticks(ticks)
@@ -299,8 +310,8 @@ class EegCarDashboard(QPygletWidget):
         #print "rudo: %d " % _rudo
 
         if _rudo > 1000:
-            # rudo = self._map(_rudo, 1200, 1897, 95, 5)
-            rudo = self._map(_rudo, 1120, 1897, 100, 0)
+            rudo = self._map(_rudo, 1200, 1897, 95, 5)
+            # rudo = self._map(_rudo, 1120, 1897, 100, 0)
             if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
             # if check_rudo_is_updated(rudo, prev_rudo):
                 rudo = self._filter_stright_driving(rudo)
@@ -388,6 +399,9 @@ class EegCarDashboard(QPygletWidget):
             self.update_rudo() # It's importance that update sequence (rudo, elev, throttle)
             self.update_elev()
             self.update_throttle()
+        # else:
+        #     if self.power_handle_mode == True:
+        #         self.update_power_handle()
 
     def on_draw(self):
         self.update()
@@ -465,13 +479,16 @@ class EegCarDashboard(QPygletWidget):
         #self.steering.neutral()
 
     def turn_right(self):
-        if self.steering.get_recentcommand() == 'turn_right': return
+        if self.steering.get_recentcommand() == 'turn_right': 
+            return
         self.wheel.turn_right(self.max_throttle)
         self.set_throttle(self.max_throttle)
         self.steering.turn_right(1)
+        
 
     def turn_left(self):
-        if self.steering.get_recentcommand() == 'turn_left': return
+        if self.steering.get_recentcommand() == 'turn_left': 
+            return
         self.wheel.turn_left(self.max_throttle) # self.max_throttle is throttle power
         self.set_throttle(self.max_throttle)
         self.steering.turn_left(1)
@@ -488,6 +505,15 @@ class EegCarDashboard(QPygletWidget):
         self.draw_brake()
         self.wheel.brake()
         print "Brake"
+
+    def update_power_handle(self):
+        # return
+        if not self.steering.isworking():
+            # print "update power handle"
+            if self.steering.get_recentcommand() == 'turn_left' or self.steering.get_recentcommand() == 'turn_right':
+                # self.steering.neutral()
+                time.sleep(0.3)
+                self.forward()
 
     def connect(self):
         #        self.steering.connect()

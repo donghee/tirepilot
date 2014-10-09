@@ -6,7 +6,7 @@ from PySide.QtCore import Qt, SIGNAL
 
 import sys
 import time
-from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE, DEFAULT_STEERING_SPEED
+from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE, DEFAULT_MAX_BACK_THROTTLE, DEFAULT_STEERING_SPEED
 
 class EegCarDashboardWindow(QWidget):
 
@@ -97,6 +97,14 @@ class EegCarDashboardWindow(QWidget):
             self.keep_mode = False
             self.setMessage('Keyboard Mode')
 
+    def power_handle_mode_control(self, state):
+        if state == QtCore.Qt.Checked:
+            self.dashboard.set_power_handle_mode(True)
+            self.setMessage('Power Handle (Auto Steering Middle)')
+        else:
+            self.dashboard.set_power_handle_mode(False)
+            self.setMessage('Turn Off Power Handle')
+
     def ignore_eeg_input_control(self, state):
         if state == QtCore.Qt.Checked:
             self.dashboard.set_ignore_eeg_input(True)
@@ -120,7 +128,7 @@ class EegCarDashboardWindow(QWidget):
         # self.setGeometry(300, 300, 750, 800)
         self.dashboard = EegCarDashboard()
         self.dashboard.set_max_throttle(DEFAULT_MAX_THROTTLE)
-        self.dashboard.set_backward_max_throttle(DEFAULT_MAX_THROTTLE)
+        self.dashboard.set_backward_max_throttle(DEFAULT_MAX_BACK_THROTTLE)
 
         self.layout = QVBoxLayout(self)
 
@@ -131,8 +139,11 @@ class EegCarDashboardWindow(QWidget):
         self.rc_stright_mode = QCheckBox('RC Stright', self)
         self.rc_stright_mode.stateChanged.connect(self.stright_control)
 
-        self.keep_mode = QCheckBox('Keep Mode', self)
-        self.keep_mode.stateChanged.connect(self.keep_mode_control)
+        self.keep_mode_checkbox = QCheckBox('Keep Mode', self)
+        self.keep_mode_checkbox.stateChanged.connect(self.keep_mode_control)
+
+        self.power_handle_mode_checkbox = QCheckBox('Power Handle', self)
+        self.power_handle_mode_checkbox.stateChanged.connect(self.power_handle_mode_control)
 
         self.ignore_eeg_input = QCheckBox('Ignore Eeg Input', self)
         self.ignore_eeg_input.stateChanged.connect(self.ignore_eeg_input_control)
@@ -140,7 +151,8 @@ class EegCarDashboardWindow(QWidget):
         drive_layout = QHBoxLayout(self)
         drive_layout.addWidget(self.rc_mode)
         drive_layout.addWidget(self.rc_stright_mode)
-        drive_layout.addWidget(self.keep_mode)
+        drive_layout.addWidget(self.keep_mode_checkbox)
+        drive_layout.addWidget(self.power_handle_mode_checkbox)
         drive_layout.addWidget(self.ignore_eeg_input)
 
         drive_groupbox = QtGui.QGroupBox("Drive Status & Setting")
@@ -165,7 +177,7 @@ class EegCarDashboardWindow(QWidget):
         self.maxThrottle.setMaxLength(2)
         self.maxThrottle.setMaximumWidth(40)
 
-        self.backwardMaxThrottle = QLineEdit(str(DEFAULT_MAX_THROTTLE))
+        self.backwardMaxThrottle = QLineEdit(str(DEFAULT_MAX_BACK_THROTTLE))
         # self.maxThrottle.textChanged[str].connect(self.setMaxThrottle)
         self.backwardMaxThrottle.editingFinished.connect(self.setBackwardMaxThrottle)
         self.backwardMaxThrottle.setMaxLength(2)
@@ -210,7 +222,7 @@ class EegCarDashboardWindow(QWidget):
         self.steering_turn_range_slider.setMaximum(8)
         self.steering_turn_range_slider.setTickInterval(1)
         self.steering_turn_range_slider.setSingleStep(1)
-        self.steering_turn_range_slider.setValue(5)
+        self.steering_turn_range_slider.setValue(6)
         self.steering_turn_range_slider.valueChanged.connect(self.steering_turn_range_slider.setValue)
         self.connect(self.steering_turn_range_slider, SIGNAL("valueChanged(int)"), self.setSteeringTurnRangeValue)
 
@@ -263,12 +275,23 @@ class EegCarDashboardWindow(QWidget):
         self.default_backgroundcolor = self.palette().color(QtGui.QPalette.Background)
         self.previos_steering = 50
         self.init_keep_mode()
+        self.init_power_handle_mode()
 
         # Timer For reading current steering position
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.readSteeringPos)
-        # check every second
-        self.timer.start(1000*1)  
+        # self.timer = QtCore.QTimer()
+        # self.timer.timeout.connect(self.readSteeringPos)
+        # # check every second
+        # self.timer.start(1000)  
+
+        # Timer For Powerhandle
+        # self.power_handle_timer = QtCore.QTimer()
+        # self.power_handle_timer.timeout.connect(self.update_power_handle)
+        # # check every half second
+        # self.power_handle_timer.start(500)
+
+    # def update_power_handle(self):
+    #     if self.power_handle_mode:
+    #         self.dashboard.update_power_handle()
 
     def readSteeringPos(self):
         # self.setMessage(str(self.dashboard.steering.get_current_steering()))
@@ -319,15 +342,23 @@ class EegCarDashboardWindow(QWidget):
         self.x_keep_countdown = 0
         self.a_keep_countdown = 0
         self.d_keep_countdown = 0
-        self.default_keep_countdown = 40
+        # self.default_keep_countdown = 40
+        self.default_keep_countdown = 10
         self.keep_mode = False
+
+    def init_power_handle_mode(self):
+        self.power_handle_mode = False
 
     def is_keep_mode(self, ignore_key):
         # if key is 'w' -> w_keep_countdown
         # if key is 'x' -> x_keep_countdown
         # ignore several 's' key while chountdown number to zero
+
+
         if self.keep_mode:
             if ignore_key == Qt.Key_S: 
+                if self.dashboard.power_handle_mode == True:
+                    self.dashboard.update_power_handle()
                 if self.w_keep_countdown > 0:
                     self.w_keep_countdown = self.w_keep_countdown - 1
                     # print "w keep countdown %d" % self.w_keep_countdown
@@ -373,7 +404,9 @@ class EegCarDashboardWindow(QWidget):
                 return
             else: 
                 self.ignore_eeg_input.setChecked(False)
-        
+
+        # self.update_power_handle(event.key())
+
         if self.is_keep_mode(event.key()):
             return
 
