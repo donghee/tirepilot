@@ -71,44 +71,11 @@ class SteeringPilot:
         # TEST MOCK
         # self.stepping_driver.spy_set_current_pos(target_location)
 
-    def turn_by_position_limit_200000(self, percent, pot):
-        if self.stepping_driver.isworking():
-            return
-
-        # TODO: need to delay? or change baud rate?
-        # TODO: wait for next turn by position ??
-        self.current_location = self.stepping_driver.get_current_pos()
-
-        print "TURN BY POSITION %d" % percent
-
-        if self.current_location < -190000 or 190000 < self.current_location:
-            # print "Range Overflow! %d" % self.current_location
-            self.logger.info('Steering Range Overflow Current: %d', self.current_location) # TODO: overflow processing using pot
-            self.current_location = self.stepping_driver.get_current_pos()
-            if self.current_location < -190000:
-                overflow_delta_ticks = -190000 - self.current_location
-                self.stepping_driver.forward(abs(overflow_delta_ticks))
-            if self.current_location > 190000:
-                overflow_delta_ticks = self.current_location - 190000
-                self.stepping_driver.backward(abs(overflow_delta_ticks))
-            return
-
-        target_location = (int(400000/100.0) * (100-percent)) - 200000
-        delta_ticks = target_location - self.current_location
-        self.logger.info('Current: %d, Target: %d, Delta ticks: %d', self.current_location, target_location, delta_ticks)
-        if delta_ticks >= 0:
-            self.stepping_driver.forward(abs(delta_ticks))
-        else:
-            self.stepping_driver.backward(abs(delta_ticks))
-
-        # TEST MOCK
-        self.stepping_driver.spy_set_current_pos(target_location)
-
     def turn_left(self, absolute_angle):
         if self.stepping_driver.isworking():
             return
-        if self.recentcommand == 'turn_right':
-            absolute_angle = 2
+        # if self.recentcommand == 'turn_right':
+        #     absolute_angle = 2
 
         self.recentcommand = 'turn_left'        
         # TODO: self.stepping_driver.get_current_pos() is neutral + turn_ticks
@@ -127,28 +94,11 @@ class SteeringPilot:
         # TEST MOCK
         self.stepping_driver.spy_set_current_pos(self.current_location)
     
-    def turn_left_limit_200000(self, absolute_angle):
-        # self.turn_ticks = 200000
-        if self.stepping_driver.isworking():
-            return
-        if self.recentcommand == 'turn_right':
-            absolute_angle = 2
-
-        self.recentcommand = 'turn_left'        
-        # TODO: self.stepping_driver.get_current_pos() is neutral + turn_ticks
-
-        delta_ticks = int(absolute_angle * self.turn_ticks)
-        self.logger.info('Current: %d Turn left: %d', self.current_location, delta_ticks)
-        self.stepping_driver.forward(delta_ticks)
-        self.current_location += delta_ticks
-        # TEST MOCK
-        self.stepping_driver.spy_set_current_pos(self.current_location)
-
     def turn_right(self, absolute_angle):
         if self.stepping_driver.isworking():
             return
-        if self.recentcommand == 'turn_left':
-            absolute_angle = 2
+        # if self.recentcommand == 'turn_left':
+        #     absolute_angle = 2
 
         self.recentcommand = 'turn_right'        
 

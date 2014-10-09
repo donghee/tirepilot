@@ -336,7 +336,7 @@ class EegCarDashboard(QPygletWidget):
         # throttle range 1100 - 1930
         # throttle throshold: 1000
         _throttle = self.wheel.get_throttle_from_rc()
-        print "throttle: %d " % _throttle
+        # print "throttle: %d " % _throttle
         if _throttle > 1000:
             throttle = self._map(_throttle, 1124, 1892, 0, 100)
 

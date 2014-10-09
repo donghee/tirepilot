@@ -5,6 +5,7 @@ from PySide.QtGui import QWidget, QLineEdit, QLabel, QIcon, QApplication, QVBoxL
 from PySide.QtCore import Qt, SIGNAL
 
 import sys
+import time
 from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE
 
 class EegCarDashboardWindow(QWidget):
@@ -22,35 +23,56 @@ class EegCarDashboardWindow(QWidget):
         pot = 1.5
         self.dashboard.steering.turn_by_position(x, pot)
 
-    def steering_update_current_pos(self, delta_x):
-        x = int(self.steering_current_pos.text()) + delta_x
+    def steering_update_current_pos(self):
+        # x = int(self.steering_current_pos.text()) + delta_x
         # while check busy
         ## read position
         ## print 'current pos %d' % x
-        self.steering_set_current_pos(x)
+
+        ticks = int(self.steering_move_ticks.text())
+        # TODO change 4000 by speed
+        seconds = int(ticks/(4000.0*7))
+        seconds = seconds + 1 # at least one second
+        ending_time = time.time() + seconds
+        while time.time() < ending_time:
+            # print "ENDNIG: %d" % ending_time
+            # print "CURRENT: %d" % time.time()
+            self.steering_set_current_pos(self.dashboard.steering.get_current_location())
 
     def steering_set_current_pos(self, x):
         self.steering_current_pos.setText(str(x))    
 
     def steering_move_left(self):
         ticks = int(self.steering_move_ticks.text())
-        x = -1 * ticks
-        # MOVE!
+        # Stepping Motor MOVE!
+        self.dashboard.steering.stepping_driver.forward(ticks)
         self.setMessage('Steering left')
-        self.steering_update_current_pos(x)
+        self.steering_update_current_pos()
 
     def steering_move_right(self):
         ticks = int(self.steering_move_ticks.text())
-        x = 1 * ticks
-        # MOVE!
+        # Stepping Motor MOVE!
+        self.dashboard.steering.stepping_driver.backward(ticks)
         self.setMessage('Steering right')
-        self.steering_update_current_pos(x)
+        self.steering_update_current_pos()
+
+    def set_steering_move_ticks_value(self):
+        self.steering_move_ticks.blockSignals(True) # update line edit
+        ticks = int(self.steering_move_ticks.text())
+        self.steering_move_ticks.setText(str(ticks)) 
+        self.steering_move_ticks.blockSignals(False)
+        self.steering_move_ticks.setModified(True)
+
+        if self.steering_move_ticks.isModified():
+            self.steering_move_ticks.clearFocus()
+        self.maxThrottle.setModified(False)
 
     def steering_reset_position(self):
-        x = 0
         # RESET
-        self.setMessage('Steering reset')
-        self.steering_update_current_pos(x)
+        self.setMessage('Steering Controller Reset')
+        # self.dashboard.steering.stepping_driver.reset()
+        self.dashboard.steering.stepping_driver.setup()
+        self.steering_update_current_pos()
 
     def setMessage(self, msg):
         self.statusBar.showMessage(msg, 2000)
@@ -174,12 +196,13 @@ class EegCarDashboardWindow(QWidget):
         self.connect(self.steering_slider, SIGNAL("valueChanged(int)"), self.setSteeringValue)
 
         self.steering_adjust_label = QLabel(' Home Adjust ', self)
-        self.steering_move_left_button = QPushButton('<Left', self)
+        self.steering_move_left_button = QPushButton('<Left+', self)
         self.steering_current_pos = QLabel('0', self)
-        self.steering_move_right_button = QPushButton('Right>', self)
+        self.steering_move_right_button = QPushButton('-Right>', self)
+
 
         self.steering_move_ticks = QLineEdit(str(2000))
-        self.steering_move_ticks.editingFinished.connect(self.setBackwardMaxThrottle)
+        self.steering_move_ticks.editingFinished.connect(self.set_steering_move_ticks_value)
         self.steering_move_ticks.setMaxLength(5)
         self.steering_move_ticks.setMaximumWidth(50)
 

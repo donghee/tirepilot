@@ -40,7 +40,7 @@ class PMC1HSUSBDriver:
 
     def reset(self):
         self.command("RST")
-        time.sleep(0.2)
+        time.sleep(0.5)
 
     def setup(self):
         self.reset()
