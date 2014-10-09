@@ -6,7 +6,7 @@ from PySide.QtCore import Qt, SIGNAL
 
 import sys
 import time
-from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE
+from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE, DEFAULT_STEERING_SPEED
 
 class EegCarDashboardWindow(QWidget):
 
@@ -23,6 +23,11 @@ class EegCarDashboardWindow(QWidget):
         pot = 1.5
         self.dashboard.steering.turn_by_position(x, pot)
 
+    def setSteeringTurnRangeValue(self, x):
+        ticks = int(100000 * (x/10.0)) # max is 100000
+        # print "STEERING TURN TICKS %d" % ticks
+        self.dashboard.set_steering_eeg_turn_ticks(ticks)
+
     def steering_update_current_pos(self):
         # x = int(self.steering_current_pos.text()) + delta_x
         # while check busy
@@ -30,8 +35,7 @@ class EegCarDashboardWindow(QWidget):
         ## print 'current pos %d' % x
 
         ticks = int(self.steering_move_ticks.text())
-        # TODO change 4000 by speed
-        seconds = int(ticks/(4000.0*7))
+        seconds = int(ticks/(DEFAULT_STEERING_SPEED*7))
         seconds = seconds + 1 # at least one second
         ending_time = time.time() + seconds
         while time.time() < ending_time:
@@ -70,8 +74,8 @@ class EegCarDashboardWindow(QWidget):
     def steering_reset_position(self):
         # RESET
         self.setMessage('Steering Controller Reset')
-        # self.dashboard.steering.stepping_driver.reset()
-        self.dashboard.steering.stepping_driver.setup()
+        self.dashboard.steering.stepping_driver.reset() # reset
+        self.dashboard.steering.stepping_driver.set_speed(DEFAULT_STEERING_SPEED) # set speed
         self.steering_update_current_pos()
 
     def setMessage(self, msg):
@@ -180,20 +184,35 @@ class EegCarDashboardWindow(QWidget):
         throttle_groupbox.setLayout(throttle_layout)
 
         # Steering
-        self.steering_label = QLabel('Steering ', self)
-        self.steering_slider = QSlider(Qt.Horizontal)
-        self.steering_slider.setFocusPolicy(Qt.StrongFocus)
-        self.steering_slider.setTickPosition(QSlider.TicksBothSides)
-        self.steering_slider.setRange(1, 9)
+        # self.steering_label = QLabel('Steering ', self)
+        # self.steering_slider = QSlider(Qt.Horizontal)
+        # self.steering_slider.setFocusPolicy(Qt.StrongFocus)
+        # self.steering_slider.setTickPosition(QSlider.TicksBothSides)
+        # self.steering_slider.setRange(1, 9)
+        # # self.steering_slider.setMinimum(2)
+        # # self.steering_slider.setMaximum(8)
+        # self.steering_slider.setMinimum(4)
+        # self.steering_slider.setMaximum(6)
+        # self.steering_slider.setTickInterval(1)
+        # self.steering_slider.setSingleStep(1)
+        # self.steering_slider.setValue(5)
+        # self.steering_slider.valueChanged.connect(self.steering_slider.setValue)
+        # self.connect(self.steering_slider, SIGNAL("valueChanged(int)"), self.setSteeringValue)
+
+        self.steering_label = QLabel('Turn Range', self)
+        self.steering_turn_range_slider = QSlider(Qt.Horizontal)
+        self.steering_turn_range_slider.setFocusPolicy(Qt.StrongFocus)
+        self.steering_turn_range_slider.setTickPosition(QSlider.TicksBothSides)
+        self.steering_turn_range_slider.setRange(1, 9)
         # self.steering_slider.setMinimum(2)
         # self.steering_slider.setMaximum(8)
-        self.steering_slider.setMinimum(4)
-        self.steering_slider.setMaximum(6)
-        self.steering_slider.setTickInterval(1)
-        self.steering_slider.setSingleStep(1)
-        self.steering_slider.setValue(5)
-        self.steering_slider.valueChanged.connect(self.steering_slider.setValue)
-        self.connect(self.steering_slider, SIGNAL("valueChanged(int)"), self.setSteeringValue)
+        self.steering_turn_range_slider.setMinimum(4)
+        self.steering_turn_range_slider.setMaximum(8)
+        self.steering_turn_range_slider.setTickInterval(1)
+        self.steering_turn_range_slider.setSingleStep(1)
+        self.steering_turn_range_slider.setValue(5)
+        self.steering_turn_range_slider.valueChanged.connect(self.steering_turn_range_slider.setValue)
+        self.connect(self.steering_turn_range_slider, SIGNAL("valueChanged(int)"), self.setSteeringTurnRangeValue)
 
         self.steering_adjust_label = QLabel(' Home Adjust ', self)
         self.steering_move_left_button = QPushButton('<Left+', self)
@@ -214,7 +233,8 @@ class EegCarDashboardWindow(QWidget):
 
         steering_layout = QHBoxLayout(self)
         steering_layout.addWidget(self.steering_label)
-        steering_layout.addWidget(self.steering_slider)
+        # steering_layout.addWidget(self.steering_slider)
+        steering_layout.addWidget(self.steering_turn_range_slider)
         steering_layout.addWidget(self.steering_adjust_label)
         steering_layout.addWidget(self.steering_move_left_button)
 
@@ -356,18 +376,6 @@ class EegCarDashboardWindow(QWidget):
         
         if self.is_keep_mode(event.key()):
             return
-
-        # if event.key() == Qt.Key_K:
-        #     self.throttle_slider.setValue(self.throttle_slider.value() + 5)
-
-        # if event.key() == Qt.Key_J:
-        #     self.throttle_slider.setValue(self.throttle_slider.value() - 5)
-
-        # if event.key() == Qt.Key_H:
-        #     self.steering_slider.setValue(self.steering_slider.value() - 5)
-
-        # if event.key() == Qt.Key_L:
-        #     self.steering_slider.setValue(self.steering_slider.value() + 5)
 
         if event.key() == Qt.Key_S:
             self.dashboard.set_key_input('s')

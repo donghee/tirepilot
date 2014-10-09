@@ -9,6 +9,8 @@ from pilotdriver import SteeringPilot, WheelPilot
 from spin import Spin
 
 DEFAULT_MAX_THROTTLE = 40
+DEFAULT_STEERING_SPEED = 4000
+DEFAULT_STEERING_EEG_TURN_TICKS = 50000
 
 prev_rudo = 0
 prev_throttle = 0
@@ -49,10 +51,13 @@ class EegCarDashboard(QPygletWidget):
         elif sys.platform == 'darwin':
             steering_port_name = "/dev/ttys004" # mock
             wheel_port_name = "/dev/ttys007" # mock
-        self.steering = SteeringPilot(steering_port_name, 4000) # default 4000
-        # self.steering.set_turn_ticks(150000) # kintex version, speed 5000
+        self.steering = SteeringPilot(steering_port_name, DEFAULT_STEERING_SPEED) # default 4000
+        # self.steering.set_turn_ticks(150000) # kintex version, when steering speed is 5000
+
         # self.steering.set_turn_ticks(100000) # fulll turn
-        self.steering.set_turn_ticks(50000) # half turn
+        # self.steering.set_turn_ticks(50000) # half turn
+        # self.steering.set_turn_ticks(DEFAULT_STEERING_EEG_TURN_TICKS) # half turn is 50000
+        self.set_steering_eeg_turn_ticks(DEFAULT_STEERING_EEG_TURN_TICKS)
 
         self.wheel = WheelPilot(wheel_port_name)
         self.set_max_throttle(DEFAULT_MAX_THROTTLE)
@@ -237,6 +242,10 @@ class EegCarDashboard(QPygletWidget):
         self.ignore_eeg_input = False # priority command for rc than eeg key
 
         self.brake()
+
+    def set_steering_eeg_turn_ticks(self, ticks):
+        # STEERING_EEG_TURN_TICKS = ticks
+        self.steering.set_turn_ticks(ticks)
 
     def set_rc_mode(self, mode):
         self.rc_mode = mode
