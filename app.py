@@ -8,7 +8,8 @@ import sys
 import time
 from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE, DEFAULT_MAX_BACK_THROTTLE, DEFAULT_STEERING_SPEED
 
-START_ACCEL_TIME = 4000
+FORWARD_THROTTLE_THRESHOLD = 20
+BACKWARD_THROTTLE_THRESHOLD = 20
 
 class EegCarDashboardWindow(QWidget):
 
@@ -234,7 +235,7 @@ class EegCarDashboardWindow(QWidget):
         self.steering_move_right_button = QPushButton('-Right>', self)
 
 
-        self.steering_move_ticks = QLineEdit(str(2000))
+        self.steering_move_ticks = QLineEdit(str(5000))
         self.steering_move_ticks.editingFinished.connect(self.set_steering_move_ticks_value)
         self.steering_move_ticks.setMaxLength(5)
         self.steering_move_ticks.setMaximumWidth(50)
@@ -291,24 +292,19 @@ class EegCarDashboardWindow(QWidget):
         # # check every half second
         # self.power_handle_timer.start(500)
 
-        # Timer For Start Accel
-        self.start_accel_timer = QtCore.QTimer()
-        # self.start_accel_timer.singleShot(5000, self.end_start_accel_handle)
-        self.can_start_accel = True
+        # # Timer For Start Accel
+        # self.start_accel_timer = QtCore.QTimer()
+        # # self.start_accel_timer.singleShot(5000, self.end_start_accel_handle)
+        # self.can_start_accel = True
 
-    def set_start_accel(self, value):
-        self.can_start_accel = value
+    # def set_start_accel(self, value):
+    #     self.can_start_accel = value
 
-    def get_start_accel(self):
-        return self.can_start_accel
+    # def get_start_accel(self):
+    #     return self.can_start_accel
 
-    def end_start_accel_handle(self):
-        if self.dashboard.wheel.get_recentcommand() == 'forward':
-            print "END: Forward START ACCEL, Restore %d" % self.getMaxThrottle()
-            self.dashboard.forward()
-        if self.dashboard.wheel.get_recentcommand() == 'backward':
-            print "END: Backward START ACCEL, Restore %d" % self.getBackwardMaxThrottle()
-            self.dashboard.backward()
+    # def end_start_accel_handle(self):
+    #     self.dashboard.end_start_accel()
 
     # def update_power_handle(self):
     #     if self.power_handle_mode:
@@ -340,7 +336,7 @@ class EegCarDashboardWindow(QWidget):
             self.maxThrottle.setModified(True)
 
         if self.maxThrottle.isModified():
-            if throttle >= 30: # throttle threshold is 30
+            if throttle >= FORWARD_THROTTLE_THRESHOLD: # forward throttle threshold is 20
                 self.dashboard.set_max_throttle(throttle)
                 self.setMessage("Forward Max Throttle: %d" % throttle)
                 self.maxThrottle.clearFocus()
@@ -349,7 +345,7 @@ class EegCarDashboardWindow(QWidget):
     def setBackwardMaxThrottle(self):
         throttle = self.getBackwardMaxThrottle()
         if self.backwardMaxThrottle.isModified():
-            if throttle >=10:
+            if throttle >= BACKWARD_THROTTLE_THRESHOLD: # backward throttle threshold is 20
                 self.dashboard.set_backward_max_throttle(throttle)
                 self.backwardMaxThrottle.clearFocus()
         self.backwardMaxThrottle.setModified(False)
@@ -434,37 +430,36 @@ class EegCarDashboardWindow(QWidget):
         if event.key() == Qt.Key_S:
             self.dashboard.set_key_input('s')
             self.dashboard.stop()
-            self.set_start_accel(True)
+            self.dashboard.set_start_accel(True)
 
         if event.key() == Qt.Key_W:
             self.dashboard.set_key_input('w')
-            if self.get_start_accel() == True:
-                throttle = self.getMaxThrottle() + 20
-                self.dashboard.forward(throttle)
-                self.set_start_accel(False)
-                self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel_handle)
+            if self.dashboard.get_start_accel() == True:
+                self.dashboard.start_accel_forward()
             else:
                 self.dashboard.forward()
 
         if event.key() == Qt.Key_A:
             self.dashboard.set_key_input('a')
-            self.dashboard.turn_left()
+            if self.dashboard.get_start_accel() == True:
+                self.dashboard.start_accel_turn_left()
+            else:
+                self.dashboard.turn_left()
 
         if event.key() == Qt.Key_X:
             self.dashboard.set_key_input('x')
 
-            if self.get_start_accel() == True:
-                throttle = self.getBackwardMaxThrottle() + 20
-                self.dashboard.backward(throttle)
-                self.set_start_accel(False)
-                self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel_handle)
+            if self.dashboard.get_start_accel() == True:
+                self.dashboard.start_accel_backward()
             else:
                 self.dashboard.backward()
 
-
         if event.key() == Qt.Key_D:
             self.dashboard.set_key_input('d')
-            self.dashboard.turn_right()
+            if self.dashboard.get_start_accel() == True:
+                self.dashboard.start_accel_turn_right()
+            else:
+                self.dashboard.turn_right()
 
         if event.key() == Qt.Key_B:
             self.dashboard.set_key_input('b')

@@ -21,7 +21,6 @@ DigitalOut led1(LED1); // RX LED
 DigitalOut led2(LED2); // TX LED
 DigitalOut led4(LED4); // DEBUG LED
 
-
 void init_relay_brake()
 {
   motor_on_relay = 0;
@@ -33,25 +32,9 @@ int relay_on_delay_second = 1;
 float motor_throttle = 0.0;
 
 Timer motor_off_relay_timer;
-int relay_off_delay_second = 2.5; // CF version
-// int relay_off_delay_second = 1.5; // 2014 10 10
-
-// void throttle_set_(float _throttle)
-// {
-//   // motor relay on
-//   // wait 2 // if already relay on, do not need wait
-// //  if (motor_on_relay == 0) {
-//  //   motor_on_relay = 1;
-//   //   wait(relay_on_delay_second);
-//    //} else {
-//     // motor_on_relay = 1;
-//    //}
-//  
-//   motor_on_relay = 1;
-//   wait(relay_on_delay_second);
-//   throttle = _throttle;
-//   led4 = 1;
-// }
+//int relay_off_delay_second = 2.5; // CF version
+// int relay_off_delay_second = 1.5; // 2014 10 10 좀 빠르게 릴레이가 꺼진다.
+int relay_off_delay_second = 1.8; // 2014 10 10
 
 void throttle_set(float _throttle)
 {
@@ -87,6 +70,7 @@ void relay_break_process() {
     motor_on_relay_timer.reset();
   }
   if (motor_off_relay_timer.read_ms() >= relay_off_delay_second*1000) {
+    // throttle = 0;
     motor_on_relay = 0;
     motor_off_relay_timer.stop();
     motor_off_relay_timer.reset();

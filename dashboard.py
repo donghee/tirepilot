@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from PySide.QtCore import QSize
+from PySide.QtCore import QSize, QTimer
 from qpygletwidget import QPygletWidget
 import pyglet
 
@@ -9,9 +9,15 @@ import time
 from pilotdriver import SteeringPilot, WheelPilot
 from spin import Spin
 
-DEFAULT_MAX_THROTTLE = 40
-DEFAULT_MAX_BACK_THROTTLE = 50
-DEFAULT_STEERING_SPEED = 4000
+START_ACCEL_TIME = 1600
+START_ACCEL_BACKWARD_TIME = 2000
+START_DELTA_THROTTLE = 30
+START_DELTA_BACKWARD_THROTTLE = 40
+
+DEFAULT_MAX_THROTTLE = 25
+DEFAULT_MAX_BACK_THROTTLE = 30
+# DEFAULT_STEERING_SPEED = 4000
+DEFAULT_STEERING_SPEED = 3500
 # DEFAULT_STEERING_SPEED = 3000
 DEFAULT_STEERING_EEG_TURN_TICKS = 50000
 
@@ -45,7 +51,6 @@ class EegCarDashboard(QPygletWidget):
         self.init_pilotdriver()
         self.init_rc_mode()
 
-
         self.setMinimumSize(QSize(640, 480))
 
     def init_pilotdriver(self):
@@ -67,6 +72,7 @@ class EegCarDashboard(QPygletWidget):
         self.set_max_throttle(DEFAULT_MAX_THROTTLE)
         self.set_backward_max_throttle(DEFAULT_MAX_BACK_THROTTLE)
         self.init_power_handle_mode()
+        self.init_start_accel()
 
     def init_spin(self):
         self.spin = Spin()
@@ -254,10 +260,72 @@ class EegCarDashboard(QPygletWidget):
     def set_power_handle_mode(self, mode):
         self.power_handle_mode = mode
 
+    # START ACCEL
+    def init_start_accel(self):
+        self.can_start_accel = True
+        self.start_accel_timer = QTimer()
+
+    def set_start_accel(self, value):
+        self.can_start_accel = value
+
+    def get_start_accel(self):
+        return self.can_start_accel
+
+    def start_accel_forward(self):
+        throttle = self.max_throttle + START_DELTA_THROTTLE
+        self.forward(throttle)
+        self.set_start_accel(False)
+        self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel)
+
+
+    def start_accel_just_forward(self): # FOR RC
+        throttle = self.max_throttle + START_DELTA_THROTTLE
+        self.just_forward(throttle)
+        # self.set_throttle(throttle) 
+        self.set_start_accel(False)
+        self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel)
+
+    def start_accel_turn_left(self):
+        throttle = self.max_throttle + START_DELTA_THROTTLE
+        self.turn_left(throttle)
+        # self.just_forward(throttle)
+        self.set_start_accel(False)
+        self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel)
+
+    def start_accel_turn_right(self):
+        throttle = self.max_throttle + START_DELTA_THROTTLE
+        self.turn_right(throttle)
+        # self.just_forward(throttle)
+        self.set_start_accel(False)
+        self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel)
+
+    def start_accel_backward(self):
+        throttle = self.backward_max_throttle + START_DELTA_BACKWARD_THROTTLE
+        self.backward(throttle)
+        # self.set_throttle(-throttle) 
+        self.set_start_accel(False)
+        self.start_accel_timer.singleShot(START_ACCEL_BACKWARD_TIME, self.end_start_accel)
+
+    def end_start_accel(self):
+        if self.wheel.get_recentcommand() == 'forward':
+            print "END: Forward START ACCEL, Restore %d" % self.max_throttle
+            self.forward()
+        if self.wheel.get_recentcommand() == 'backward':
+            print "END: Backward START ACCEL, Restore %d" % self.backward_max_throttle
+            self.backward()
+        if self.steering.get_recentcommand() == 'turn_right':
+            print "END: Turn Right START ACCEL, Restore %d" % self.max_throttle
+            self.just_forward()
+        if self.steering.get_recentcommand() == 'turn_left':
+            print "END: Turn Left START ACCEL, Restore %d" % self.max_throttle
+            self.just_forward()
+
+    # STEERING TICK
     def set_steering_eeg_turn_ticks(self, ticks):
         # STEERING_EEG_TURN_TICKS = ticks
         self.steering.set_turn_ticks(ticks)
 
+    # RC
     def set_rc_mode(self, mode):
         self.rc_mode = mode
 
@@ -310,22 +378,11 @@ class EegCarDashboard(QPygletWidget):
         #print "rudo: %d " % _rudo
 
         if _rudo > 1000:
-            rudo = self._map(_rudo, 1200, 1897, 95, 5)
+            rudo = self._map(_rudo, 1200, 1897, 85, 15)
             # rudo = self._map(_rudo, 1120, 1897, 100, 0)
             if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
             # if check_rudo_is_updated(rudo, prev_rudo):
                 rudo = self._filter_stright_driving(rudo)
-                # if self.rc_stright_mode:
-                #     if rudo < 30:
-                #         rudo = 35
-                #         #rudo = 40
-                #     elif rudo > 70:
-                #         rudo = 65
-                #         #rudo = 60
-                #     else:
-                #         rudo = 50
-                
-                # TODO: if not self.steering.isworking():
                 if not self.steering.isworking():                
                     # self.set_steering(int(rudo))
                     self.steering.turn_by_position(int(rudo), self.get_steering_pot())
@@ -364,15 +421,21 @@ class EegCarDashboard(QPygletWidget):
                 if self.rc_mode_is_throttle_up == True:
                     #self.stop()
                     self.brake()
+                    self.set_start_accel(True)  # START ACCEL
                     prev_throttle = throttle
                     self.rc_mode_is_throttle_up = False
                 return
 
-            self.set_throttle(throttle)
+            # self.set_throttle(throttle) # RC RAW throttle
 
             if self.rc_mode_is_forward:
                 if self.rc_mode_is_throttle_up == False:
-                    self.just_forward()
+                    if self.get_start_accel() == True:
+                        self.start_accel_just_forward()
+                    else:
+                        # self.forward()
+                        self.just_forward()
+
                     self.rc_mode_is_throttle_up = True
                     # print "RC Mode: COMMAND FORWARD"
                 prev_throttle = throttle
@@ -381,7 +444,10 @@ class EegCarDashboard(QPygletWidget):
                 return
             else:
                 if self.rc_mode_is_throttle_up == False:
-                    self.backward()
+                    if self.get_start_accel() == True:
+                        self.start_accel_backward()
+                    else:
+                        self.backward()
                     self.rc_mode_is_throttle_up = True
                     # print "RC Mode: COMMAND BACKWARD"
                 self.set_ignore_eeg_input(True)
@@ -389,6 +455,7 @@ class EegCarDashboard(QPygletWidget):
         else: # if _throttle is 0, rc is not connected
             prev_throttle = 0
             self.rc_mode_is_throttle_up = False
+
             # self.stop()
             # self.brake()
 
@@ -455,10 +522,12 @@ class EegCarDashboard(QPygletWidget):
     def set_backward_max_throttle(self, throttle):
         self.backward_max_throttle = throttle
 
-    def just_forward(self):
+    def just_forward(self, throttle=None):
         self.init_images()
-        self.wheel.forward(self.max_throttle)
-        self.set_throttle(self.max_throttle)
+        if throttle == None:
+            throttle = self.max_throttle
+        self.wheel.forward(throttle)
+        self.set_throttle(throttle)
 
     def forward(self, throttle=None):
         self.init_images()
@@ -482,19 +551,22 @@ class EegCarDashboard(QPygletWidget):
         #self.steering.neutral()
         self.set_throttle(-throttle)
 
-    def turn_right(self):
+    def turn_right(self, throttle=None):
         if self.steering.get_recentcommand() == 'turn_right': 
             return
-        self.wheel.turn_right(self.max_throttle)
-        self.set_throttle(self.max_throttle)
+        if throttle == None:
+            throttle = self.max_throttle
+        self.wheel.turn_right(throttle)
+        self.set_throttle(throttle)
         self.steering.turn_right(1)
         
-
-    def turn_left(self):
+    def turn_left(self, throttle=None):
         if self.steering.get_recentcommand() == 'turn_left': 
             return
-        self.wheel.turn_left(self.max_throttle) # self.max_throttle is throttle power
-        self.set_throttle(self.max_throttle)
+        if throttle == None:
+            throttle = self.max_throttle
+        self.wheel.turn_left(throttle) # self.max_throttle is throttle power
+        self.set_throttle(throttle)
         self.steering.turn_left(1)
 
     def stop(self):
