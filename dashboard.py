@@ -14,8 +14,8 @@ START_ACCEL_BACKWARD_TIME = 2000
 START_DELTA_THROTTLE = 30
 START_DELTA_BACKWARD_THROTTLE = 40
 
-DEFAULT_MAX_THROTTLE = 25
-DEFAULT_MAX_BACK_THROTTLE = 30
+DEFAULT_MAX_THROTTLE = 35
+DEFAULT_MAX_BACK_THROTTLE = 40
 # DEFAULT_STEERING_SPEED = 4000
 DEFAULT_STEERING_SPEED = 3500
 # DEFAULT_STEERING_SPEED = 3000
@@ -277,7 +277,6 @@ class EegCarDashboard(QPygletWidget):
         self.set_start_accel(False)
         self.start_accel_timer.singleShot(START_ACCEL_TIME, self.end_start_accel)
 
-
     def start_accel_just_forward(self): # FOR RC
         throttle = self.max_throttle + START_DELTA_THROTTLE
         self.just_forward(throttle)
@@ -378,8 +377,8 @@ class EegCarDashboard(QPygletWidget):
         #print "rudo: %d " % _rudo
 
         if _rudo > 1000:
-            rudo = self._map(_rudo, 1200, 1897, 85, 15)
-            # rudo = self._map(_rudo, 1120, 1897, 100, 0)
+            rudo = self._map(_rudo, 1119, 1897, 85, 15)
+            # rudo = self._map(_rudo, 1119, 1897, 100, 0)
             if rudo <= (prev_rudo - 2) or (prev_rudo +2) <= rudo:
             # if check_rudo_is_updated(rudo, prev_rudo):
                 rudo = self._filter_stright_driving(rudo)
@@ -523,28 +522,19 @@ class EegCarDashboard(QPygletWidget):
         self.backward_max_throttle = throttle
 
     def just_forward(self, throttle=None):
-        self.init_images()
         if throttle == None:
             throttle = self.max_throttle
         self.wheel.forward(throttle)
         self.set_throttle(throttle)
 
     def forward(self, throttle=None):
-        self.init_images()
-
         if throttle == None:
             throttle = self.max_throttle
         self.wheel.forward(throttle)
         self.set_throttle(throttle)
         self.steering.neutral()
         
-
-    def draw_backward(self):
-        self.init_images()
-        self.down_image = self.init_image("images/down_clicked.jpg")
-
     def backward(self, throttle=None):
-        # self.draw_backward()
         if throttle == None:
             throttle = self.backward_max_throttle
         self.wheel.backward(self.backward_max_throttle) # 45 is throttle power
@@ -574,11 +564,7 @@ class EegCarDashboard(QPygletWidget):
         self.wheel.brake()        
         self.set_throttle(0)
 
-    def draw_brake(self):
-        self.init_images()
-
     def brake(self):
-        self.draw_brake()
         self.wheel.brake()
         print "Brake"
 
@@ -599,8 +585,8 @@ class EegCarDashboard(QPygletWidget):
     def disconnect(self):
         self.steering.disconnect()
         self.wheel.disconnect()
-        print "dashboard disconnected"
 
     def close(self):
         self.disconnect()
+        
 

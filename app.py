@@ -359,8 +359,9 @@ class EegCarDashboardWindow(QWidget):
         self.x_keep_countdown = 0
         self.a_keep_countdown = 0
         self.d_keep_countdown = 0
-        # self.default_keep_countdown = 40
-        self.default_keep_countdown = 10
+        self.default_keep_countdown = 35
+        # self.default_keep_countdown = 28
+        # self.default_keep_countdown = 38
         self.keep_mode = False
 
     def init_power_handle_mode(self):

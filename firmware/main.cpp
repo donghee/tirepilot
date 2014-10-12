@@ -43,22 +43,10 @@ void throttle_set(float _throttle)
   motor_on_relay_timer.start();
 }
 
-void throttle_clear_()
-{
-  throttle = 0;
-  led4 = 0;
-  wait(relay_on_delay_second*1.5);
-  motor_on_relay = 0;
-}
-
 void throttle_clear()
 {
   throttle = 0;
   led4 = 0;
-  // wait 2
-  // relay off
-  // wait(relay_on_delay_second*1.5);
-  // motor_on_relay = 0;
   motor_off_relay_timer.start();
 }
 
@@ -74,7 +62,7 @@ void relay_break_process() {
     motor_on_relay = 0;
     motor_off_relay_timer.stop();
     motor_off_relay_timer.reset();
- }
+  }
 }
 
 void push(float _throttle) 

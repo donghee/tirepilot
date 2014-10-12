@@ -51,12 +51,6 @@ class SteeringPilot:
             # print "Range Overflow! %d" % self.current_location
             self.logger.info('Steering Range Overflow Current: %d', self.current_location) # TODO: overflow processing using pot
             self.current_location = self.stepping_driver.get_current_pos()
-            # if self.current_location < -190000:
-            #     overflow_delta_ticks = -190000 - self.current_location
-            #     self.stepping_driver.forward(abs(overflow_delta_ticks))
-            # if self.current_location > 190000:
-            #     overflow_delta_ticks = self.current_location - 190000
-            #     self.stepping_driver.backward(abs(overflow_delta_ticks))
 
         target_location = (int(200000/100.0) * (100-percent)) - 100000 # max turn tick is 100000
         # target_location = (int(self.turn_ticks/100.0) * (100-percent)) - (self.turn_ticks/2)
@@ -82,12 +76,6 @@ class SteeringPilot:
 
         self.current_location = self.stepping_driver.get_current_pos()
         delta_ticks = self.turn_ticks - self.current_location
-        # # if self.current_location >= 0:
-        # #     delta_ticks = self.turn_ticks - abs(self.current_location)
-        # # else:
-        # #     delta_ticks = self.turn_ticks + abs(self.current_location)
-
-        # delta_ticks = int(absolute_angle * self.turn_ticks)
         self.logger.info('Current: %d Turn left: %d', self.current_location, delta_ticks)
         self.stepping_driver.forward(delta_ticks)
         self.current_location += delta_ticks
@@ -104,44 +92,28 @@ class SteeringPilot:
 
         self.current_location = self.stepping_driver.get_current_pos()
         delta_ticks = self.turn_ticks + self.current_location
-        # # if self.current_location >= 0:
-        # #     delta_ticks = self.turn_ticks + abs(self.current_location)
-        # # else:
-        # #     delta_ticks = self.turn_ticks - abs(self.current_location)
-
-        # delta_ticks = int(absolute_angle * self.turn_ticks)
         self.logger.info('Current: %d Turn right: %d', self.current_location, delta_ticks)
         self.stepping_driver.backward(delta_ticks)
         self.current_location -= delta_ticks
         # TEST MOCK
         self.stepping_driver.spy_set_current_pos(self.current_location)
 
-    def stop(self):
-        if self.stepping_driver.isworking(): return
-        # self.recentcommand = 'stop'        
-        self.logger.info('Current: %d Stop', self.current_location)
-        self.stepping_driver.stop()
+    # def stop(self):
+    #     if self.stepping_driver.isworking(): return
+    #     # self.recentcommand = 'stop'        
+    #     self.logger.info('Current: %d Stop', self.current_location)
+    #     self.stepping_driver.stop()
     
     def position_clear(self):
         self.stepping_driver.reset()
 
     def middle_position(self, pot): 
         return 
-        # pot range: left(1.97) - middle 1.60 - right 1.15 #if pot > 170: #self.stepping_driver.backward(10000)
-            #self.turn_right(0.05)
-        #if pot < 150:
-            #self.stepping_driver.forward(10000)
-            #self.turn_left(0.05)
-        #if 155 <= pot <= 165:
-            #print 'Finish Middle Position Pot: %d' % pot
         
     def neutral(self):
-        # print "neutral0"
         if self.stepping_driver.isworking(): return
-        # print "neutral1"
         self.recentcommand = 'neutral'
         self.logger.info('Current: %d, Neutral', self.stepping_driver.get_current_pos())
-        # print "neutral2"
         self.current_location = self.stepping_driver.get_current_pos()
         if self.current_location >= 0:
             self.stepping_driver.backward(abs(self.current_location))
@@ -150,7 +122,6 @@ class SteeringPilot:
             self.stepping_driver.forward(abs(self.current_location))
             # print abs(self.current_location)
         self.current_location = 0
-        # print "neutral3"
         # TEST MOCK
         self.stepping_driver.spy_set_current_pos(self.current_location)
 

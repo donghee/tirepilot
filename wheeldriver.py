@@ -32,6 +32,7 @@ class SerialReader(QtCore.QThread):
          except:
             errMsg = "Reader thread is terminated unexpectedly."
             self.finished.emit("%s" % errMsg)
+            # print errMsg
             break
 
 class SerialWriter(QtCore.QThread):
@@ -49,6 +50,7 @@ class SerialWriter(QtCore.QThread):
       except:
          errMsg = "Writer thread is terminated unexpectedly."
          self.finished.emit("%s" % errMsg)
+         # print errMsg
 
    def terminate(self):
       self.wait()
