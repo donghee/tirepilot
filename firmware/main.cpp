@@ -28,26 +28,49 @@ void init_relay_brake()
 }
 
 Timer motor_on_relay_timer;
-int relay_on_delay_second = 1;
+// int relay_on_delay_second = 1; // 2014 10 10
+// int relay_on_delay_second = 1.5; // 2014 10 10
+int relay_on_delay_second = 2.0;
 float motor_throttle = 0.0;
 
 Timer motor_off_relay_timer;
 //int relay_off_delay_second = 2.5; // CF version
 // int relay_off_delay_second = 1.5; // 2014 10 10 좀 빠르게 릴레이가 꺼진다.
-int relay_off_delay_second = 1.8; // 2014 10 10
+// int relay_off_delay_second = 1.8; // 2014 10 10
+int relay_off_delay_second = 2.5; // 2014 10 14
+// int relay_off_delay_second = 5; // 2014 10 14
 
 void throttle_set(float _throttle)
 {
-  motor_on_relay = 1;
-  motor_throttle = _throttle; // it just save for delayed throttle.
-  motor_on_relay_timer.start();
+    // 2014 10 12
+    // motor_on_relay = 1;
+    // motor_throttle = _throttle; // it just save for delayed throttle.
+    // motor_on_relay_timer.start();
+
+
+    motor_throttle = _throttle; // it just save for delayed throttle.
+    // check motor 'throttle' is zero and motor_on_relay is zero
+    if (motor_on_relay == 0 && motor_on_relay_timer.read_ms() == 0) {
+        motor_on_relay = 1;
+        motor_on_relay_timer.start();
+    }
+    else if (motor_off_relay_timer.read_ms() == 0){
+        throttle = motor_throttle;
+    }
 }
 
 void throttle_clear()
 {
-  throttle = 0;
-  led4 = 0;
-  motor_off_relay_timer.start();
+    // 2014 10 12
+    // throttle = 0;
+    // led4 = 0;
+    // motor_off_relay_timer.start();
+    
+    throttle = 0;
+    led4 = 0;
+    // check motor_off_relay_timer.read_ms() == 0
+    if (motor_on_relay == 1 && motor_off_relay_timer.read_ms() == 0)
+        motor_off_relay_timer.start();
 }
 
 void relay_break_process() {

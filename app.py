@@ -10,6 +10,8 @@ from dashboard import EegCarDashboard, DEFAULT_MAX_THROTTLE, DEFAULT_MAX_BACK_TH
 
 FORWARD_THROTTLE_THRESHOLD = 20
 BACKWARD_THROTTLE_THRESHOLD = 20
+DEFAULT_KEEP_COUNT = 35
+#DEFAULT_KEEP_COUNT = 35 # cart circuit demo count
 
 class EegCarDashboardWindow(QWidget):
 
@@ -199,21 +201,6 @@ class EegCarDashboardWindow(QWidget):
         throttle_groupbox.setLayout(throttle_layout)
 
         # Steering
-        # self.steering_label = QLabel('Steering ', self)
-        # self.steering_slider = QSlider(Qt.Horizontal)
-        # self.steering_slider.setFocusPolicy(Qt.StrongFocus)
-        # self.steering_slider.setTickPosition(QSlider.TicksBothSides)
-        # self.steering_slider.setRange(1, 9)
-        # # self.steering_slider.setMinimum(2)
-        # # self.steering_slider.setMaximum(8)
-        # self.steering_slider.setMinimum(4)
-        # self.steering_slider.setMaximum(6)
-        # self.steering_slider.setTickInterval(1)
-        # self.steering_slider.setSingleStep(1)
-        # self.steering_slider.setValue(5)
-        # self.steering_slider.valueChanged.connect(self.steering_slider.setValue)
-        # self.connect(self.steering_slider, SIGNAL("valueChanged(int)"), self.setSteeringValue)
-
         self.steering_label = QLabel('Turn Range', self)
         self.steering_turn_range_slider = QSlider(Qt.Horizontal)
         self.steering_turn_range_slider.setFocusPolicy(Qt.StrongFocus)
@@ -233,7 +220,6 @@ class EegCarDashboardWindow(QWidget):
         self.steering_move_left_button = QPushButton('<Left+', self)
         self.steering_current_pos = QLabel('0', self)
         self.steering_move_right_button = QPushButton('-Right>', self)
-
 
         self.steering_move_ticks = QLineEdit(str(5000))
         self.steering_move_ticks.editingFinished.connect(self.set_steering_move_ticks_value)
@@ -359,7 +345,7 @@ class EegCarDashboardWindow(QWidget):
         self.x_keep_countdown = 0
         self.a_keep_countdown = 0
         self.d_keep_countdown = 0
-        self.default_keep_countdown = 35
+        self.default_keep_countdown = DEFAULT_KEEP_COUNT
         # self.default_keep_countdown = 28
         # self.default_keep_countdown = 38
         self.keep_mode = False
@@ -388,14 +374,28 @@ class EegCarDashboardWindow(QWidget):
                     self.setMessage("x keep countdown %d" % self.x_keep_countdown)
                     self.w_keep_countdown = 0
                     return True
-                # if self.a_keep_countdown > 0:
-                #     self.a_keep_countdown = self.a_keep_countdown - 1
-                #     print "a keep countdown %d" % self.a_keep_countdown
-                #     return True
-                # if self.d_keep_countdown > 0:
-                #     self.d_keep_countdown = self.d_keep_countdown - 1
-                #     print "d keep countdown %d" % self.d_keep_countdown
-                #     return True
+ 
+            if ignore_key == Qt.Key_X: 
+                if self.w_keep_countdown > 0:
+                    self.w_keep_countdown = self.w_keep_countdown - 1
+                    self.setMessage("w keep countdown %d" % self.w_keep_countdown)
+                    if self.w_keep_countdown < DEFAULT_KEEP_COUNT - 10:
+                      # self.stop()
+                      self.dashboard.set_key_input('s')
+                      self.dashboard.stop()
+                      self.dashboard.set_start_accel(True)
+                    return True
+
+            if ignore_key == Qt.Key_W: 
+                if self.x_keep_countdown > 0:
+                    self.x_keep_countdown = self.x_keep_countdown - 1
+                    self.setMessage("x keep countdown %d" % self.x_keep_countdown)
+                    if self.x_keep_countdown < DEFAULT_KEEP_COUNT - 10:
+                      # self.stop()
+                      self.dashboard.set_key_input('s')
+                      self.dashboard.stop()
+                      self.dashboard.set_start_accel(True)
+                    return True
  
         return False
 
@@ -415,7 +415,7 @@ class EegCarDashboardWindow(QWidget):
                 
     def keyPressEvent(self, event):
         if self.dashboard.rc_mode == True :
-            if self.dashboard.ignore_eeg_input ==True:
+            if self.dashboard.ignore_eeg_input == True:
                 self.ignore_eeg_input.setChecked(True)
                 if event.key():
                     self.dashboard.set_key_input('Ignore')

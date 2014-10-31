@@ -9,7 +9,8 @@ import time
 from pilotdriver import SteeringPilot, WheelPilot
 from spin import Spin
 
-START_ACCEL_TIME = 1600
+# START_ACCEL_TIME = 1600 # 2014 10 12
+START_ACCEL_TIME = 2000
 START_ACCEL_BACKWARD_TIME = 2000
 START_DELTA_THROTTLE = 30
 START_DELTA_BACKWARD_THROTTLE = 40
